@@ -48,10 +48,10 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
-  // YEH NAYA SECTION ADD KARO
+  // ✅ FIXED DEFINE SECTION
   define: {
-    'process.env': {},
-    '__REACT_DEVTOOLS_GLOBAL_HOOK__': '({ isDisabled: true })'
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+    '__REACT_DEVTOOLS_GLOBAL_HOOK__': 'undefined' // ✅ Simple fix
   },
   optimizeDeps: {
     include: ['react', 'react-dom']
