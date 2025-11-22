@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +7,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone, MapPin, Send } from "lucide-react";
+import { Mail, Phone, MapPin, Send, MessageCircle } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is too short"),
@@ -15,8 +16,120 @@ const formSchema = z.object({
   message: z.string().min(10, "Message is too short"),
 });
 
+// Floating letter component for typing effects
+function FloatingLetter({ letter, index }: { letter: string; index: number }) {
+  const [isFloating, setIsFloating] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsFloating(true);
+    }, index * 100);
+
+    return () => clearTimeout(timer);
+  }, [index]);
+
+  return (
+    <motion.span
+      initial={{ y: 0, opacity: 0 }}
+      animate={{ 
+        y: isFloating ? -10 : 0,
+        opacity: 1
+      }}
+      transition={{ 
+        y: {
+          repeat: Infinity,
+          repeatType: "reverse",
+          duration: 1 + Math.random() * 2,
+          ease: "easeInOut"
+        }
+      }}
+      className="inline-block"
+      style={{ animationDelay: `${index * 0.1}s` }}
+    >
+      {letter}
+    </motion.span>
+  );
+}
+
+function FloatingInput({ field, placeholder }: any) {
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+    field.onChange(e);
+  };
+
+  return (
+    <div className="relative">
+      <Input
+        ref={inputRef}
+        placeholder={placeholder}
+        value={value}
+        onChange={handleChange}
+        className="bg-white/5 border-white/10 focus:border-primary h-14 text-lg backdrop-blur-sm"
+      />
+      <AnimatePresence>
+        {value && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute inset-0 pointer-events-none flex items-center px-3"
+          >
+            {value.split('').map((letter, index) => (
+              <FloatingLetter key={index} letter={letter} index={index} />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function FloatingTextarea({ field, placeholder }: any) {
+  const [value, setValue] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setValue(e.target.value);
+    field.onChange(e);
+  };
+
+  return (
+    <div className="relative">
+      <Textarea
+        ref={textareaRef}
+        placeholder={placeholder}
+        value={value}
+        onChange={handleChange}
+        className="bg-white/5 border-white/10 focus:border-primary min-h-[120px] text-lg resize-none backdrop-blur-sm"
+      />
+      <AnimatePresence>
+        {value && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 pointer-events-none p-3 overflow-hidden"
+          >
+            <div className="flex flex-wrap gap-1">
+              {value.split('').map((letter, index) => (
+                <FloatingLetter key={index} letter={letter} index={index} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function Contact() {
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number }>>([]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -26,209 +139,317 @@ export default function Contact() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  // Create floating particles
+  useEffect(() => {
+    const newParticles = Array.from({ length: 15 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+    }));
+    setParticles(newParticles);
+  }, []);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     toast({
-      title: "Message sent!",
-      description: "I'll get back to you as soon as possible.",
+      title: "🎉 Message Sent!",
+      description: "I'll get back to you within 24 hours.",
     });
+    
     form.reset();
+    setIsSubmitting(false);
   }
 
   return (
-    <section id="contact" className="py-16 sm:py-20 md:py-24 relative overflow-hidden">
+    <section id="contact" className="py-20 sm:py-28 md:py-36 bg-black relative overflow-hidden">
+      {/* Animated background particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {particles.map((particle) => (
+          <motion.div
+            key={particle.id}
+            className="absolute w-2 h-2 bg-primary rounded-full"
+            initial={{
+              x: `${particle.x}vw`,
+              y: `${particle.y}vh`,
+            }}
+            animate={{
+              y: [`${particle.y}vh`, `${particle.y - 20}vh`, `${particle.y}vh`],
+              x: [`${particle.x}vw`, `${particle.x + Math.sin(particle.id) * 10}vw`, `${particle.x}vw`],
+            }}
+            transition={{
+              duration: 5 + particle.id,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+        
+        {/* Gradient orbs */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-80 h-80 bg-secondary/10 rounded-full blur-3xl" />
+      </div>
+
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12 sm:mb-16"
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-16 sm:mb-24"
         >
-          <h2 className="text-xs sm:text-sm font-medium text-secondary tracking-widest uppercase mb-2 sm:mb-3">
+          <motion.h2
+            initial={{ opacity: 0, scale: 0.5 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-xs sm:text-sm font-semibold text-primary tracking-widest uppercase mb-4"
+          >
             Get In Touch
-          </h2>
-          <h3 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display">
-            Let's Work <span className="text-gradient">Together</span>
-          </h3>
+          </motion.h2>
+          
+          <motion.h3
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6"
+          >
+            Let's <span className="text-gradient bg-gradient-to-r from-primary via-secondary to-purple-400 bg-clip-text text-transparent">Connect</span>
+          </motion.h3>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="text-lg text-white/60 max-w-2xl mx-auto"
+          >
+            Ready to bring your ideas to life? Let's create something amazing together.
+          </motion.p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 md:gap-12 items-start">
-          {/* Contact Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 sm:gap-16 md:gap-20 items-start">
+          {/* Contact Info with animations */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6 }}
-            className="space-y-6 sm:space-y-8 order-2 lg:order-1"
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="space-y-8"
           >
-            <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed sm:leading-loose">
-              I'm currently looking for new opportunities and freelance projects. 
-              Whether you have a project in mind or just want to connect, feel free to reach out!
-            </p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-xl text-white/70 leading-relaxed"
+            >
+              I'm currently available for freelance work and exciting new opportunities. 
+              Whether you have a project in mind or just want to say hello, I'd love to hear from you!
+            </motion.p>
             
-            <div className="space-y-4 sm:space-y-6">
-              <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 glass-panel rounded-lg sm:rounded-xl hover:border-primary/30 transition-colors group min-h-[80px]">
-                <div className="p-2 sm:p-3 bg-primary/10 rounded-lg text-primary group-hover:scale-105 sm:group-hover:scale-110 transition-transform flex-shrink-0">
-                  <Mail size={20} className="sm:size-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm sm:text-base">Email</h4>
-                  <p className="text-muted-foreground text-xs sm:text-sm truncate">
-                    himanshukanojiya27@gmail.com
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 glass-panel rounded-lg sm:rounded-xl hover:border-primary/30 transition-colors group min-h-[80px]">
-                <div className="p-2 sm:p-3 bg-primary/10 rounded-lg text-primary group-hover:scale-105 sm:group-hover:scale-110 transition-transform flex-shrink-0">
-                  <Phone size={20} className="sm:size-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm sm:text-base">Phone</h4>
-                  <p className="text-muted-foreground text-xs sm:text-sm">
-                    +91 8378985323
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 glass-panel rounded-lg sm:rounded-xl hover:border-primary/30 transition-colors group min-h-[80px]">
-                <div className="p-2 sm:p-3 bg-primary/10 rounded-lg text-primary group-hover:scale-105 sm:group-hover:scale-110 transition-transform flex-shrink-0">
-                  <MapPin size={20} className="sm:size-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm sm:text-base">Location</h4>
-                  <p className="text-muted-foreground text-xs sm:text-sm">
-                    Nagpur, Maharashtra
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Mobile Quick Actions */}
-            <div className="sm:hidden space-y-3 pt-4 border-t border-white/10">
-              <p className="text-sm text-muted-foreground text-center">
-                Quick actions:
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-xs rounded-full"
-                  onClick={() => window.open('mailto:himanshukanojiya27@gmail.com')}
+            <div className="space-y-6">
+              {[
+                {
+                  icon: Mail,
+                  title: "Email",
+                  content: "himanshukanojiya27@gmail.com",
+                  href: "mailto:himanshukanojiya27@gmail.com",
+                  color: "from-blue-500 to-cyan-500"
+                },
+                {
+                  icon: Phone,
+                  title: "Phone",
+                  content: "+91 8378985323",
+                  href: "tel:+918378985323",
+                  color: "from-green-500 to-emerald-500"
+                },
+                {
+                  icon: MapPin,
+                  title: "Location",
+                  content: "Nagpur, Maharashtra",
+                  href: "#",
+                  color: "from-purple-500 to-pink-500"
+                },
+                {
+                  icon: MessageCircle,
+                  title: "WhatsApp",
+                  content: "+91 8378985323",
+                  href: "https://wa.me/918378985323",
+                  color: "from-green-400 to-green-600"
+                }
+              ].map((item, index) => (
+                <motion.a
+                  key={item.title}
+                  href={item.href}
+                  target={item.href.startsWith('http') ? '_blank' : '_self'}
+                  rel="noopener noreferrer"
+                  initial={{ opacity: 0, x: -30 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
+                  whileHover={{ scale: 1.02, x: 10 }}
+                  className="flex items-center gap-6 p-6 bg-white/5 rounded-2xl backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300 group"
                 >
-                  <Mail size={14} className="mr-1" />
-                  Email
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="text-xs rounded-full"
-                  onClick={() => window.open('tel:+918378985323')}
-                >
-                  <Phone size={14} className="mr-1" />
-                  Call
-                </Button>
-              </div>
+                  <div className={`p-4 rounded-xl bg-gradient-to-r ${item.color} group-hover:scale-110 transition-transform duration-300`}>
+                    <item.icon size={24} className="text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-white text-lg mb-1">{item.title}</h4>
+                    <p className="text-white/60">{item.content}</p>
+                  </div>
+                </motion.a>
+              ))}
             </div>
           </motion.div>
 
-          {/* Form */}
+          {/* Interactive Form */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-50px" }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="glass-card p-4 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl order-1 lg:order-2"
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="bg-white/5 rounded-3xl p-8 sm:p-10 backdrop-blur-sm border border-white/10"
           >
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm sm:text-base">Name</FormLabel>
+                      <FormLabel className="text-white text-lg font-semibold">Your Name</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="John Doe" 
-                          {...field} 
-                          className="bg-white/5 border-white/10 focus:border-primary h-11 sm:h-12 text-sm sm:text-base"
-                        />
+                        <FloatingInput field={field} placeholder="Enter your full name" />
                       </FormControl>
-                      <FormMessage className="text-xs" />
+                      <FormMessage className="text-red-400" />
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm sm:text-base">Email</FormLabel>
+                      <FormLabel className="text-white text-lg font-semibold">Email Address</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="john@example.com" 
-                          {...field} 
-                          className="bg-white/5 border-white/10 focus:border-primary h-11 sm:h-12 text-sm sm:text-base"
-                        />
+                        <FloatingInput field={field} placeholder="your.email@example.com" />
                       </FormControl>
-                      <FormMessage className="text-xs" />
+                      <FormMessage className="text-red-400" />
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="message"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm sm:text-base">Message</FormLabel>
+                      <FormLabel className="text-white text-lg font-semibold">Your Message</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          placeholder="Tell me about your project..." 
-                          {...field} 
-                          className="bg-white/5 border-white/10 focus:border-primary min-h-[100px] sm:min-h-[120px] text-sm sm:text-base resize-vertical"
-                        />
+                        <FloatingTextarea field={field} placeholder="Tell me about your project, ideas, or just say hello..." />
                       </FormControl>
-                      <FormMessage className="text-xs" />
+                      <FormMessage className="text-red-400" />
                     </FormItem>
                   )}
                 />
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white font-bold py-4 sm:py-6 rounded-lg sm:rounded-xl text-sm sm:text-base min-h-[48px] sm:min-h-[56px]"
-                >
-                  Send Message <Send className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
-                </Button>
+
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white font-semibold py-6 rounded-xl text-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl shadow-primary/25"
+                  >
+                    {isSubmitting ? (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-6 h-6 border-2 border-white border-t-transparent rounded-full"
+                      />
+                    ) : (
+                      <>
+                        Send Message 
+                        <Send className="ml-3 w-5 h-5" />
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
               </form>
             </Form>
 
-            {/* Form Submission Hint */}
-            <div className="mt-4 pt-4 border-t border-white/10 sm:hidden">
-              <p className="text-xs text-muted-foreground text-center">
-                📱 Form optimized for mobile
-              </p>
-            </div>
+            {/* Form success animation */}
+            <AnimatePresence>
+              {form.formState.isSubmitSuccessful && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0 }}
+                  className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-3xl flex items-center justify-center backdrop-blur-sm"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", damping: 10 }}
+                    className="text-center"
+                  >
+                    <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Send className="w-8 h-8 text-white" />
+                    </div>
+                    <p className="text-white text-lg font-semibold">Message Sent!</p>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
 
-        {/* Mobile Success Message */}
+        {/* CTA Section */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-8 sm:hidden text-center"
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="text-center mt-16 sm:mt-24"
         >
-          <p className="text-sm text-muted-foreground">
-            💬 Prefer to chat? Tap the quick action buttons above!
-          </p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="text-white/60 text-lg mb-8"
+          >
+            Prefer a quicker chat?
+          </motion.p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <motion.a
+              href="https://wa.me/918378985323"
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all duration-300 shadow-2xl shadow-green-500/25"
+            >
+              <MessageCircle size={20} />
+              WhatsApp Me
+            </motion.a>
+            
+            <motion.a
+              href="mailto:himanshukanojiya27@gmail.com"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all duration-300 border border-white/20"
+            >
+              <Mail size={20} />
+              Send Email
+            </motion.a>
+          </div>
         </motion.div>
-      </div>
-
-      {/* Background Decorative Elements - Mobile Optimized */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-10 -right-8 w-32 h-32 sm:w-48 sm:h-48 bg-primary/5 rounded-full blur-xl"></div>
-        <div className="absolute bottom-10 -left-8 w-32 h-32 sm:w-48 sm:h-48 bg-secondary/5 rounded-full blur-xl"></div>
       </div>
     </section>
   );
