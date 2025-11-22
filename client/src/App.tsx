@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
+import Footer from "@/components/layout/Footer"; // ✅ Footer import add kiya
 
 function Router() {
   return (
@@ -20,7 +21,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <div className="min-h-screen flex flex-col">
+          <main className="flex-1">
+            <Router />
+          </main>
+          <Footer /> {/* ✅ Footer add kiya */}
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );

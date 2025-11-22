@@ -48,4 +48,12 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  // YEH NAYA SECTION ADD KARO
+  define: {
+    'process.env': {},
+    '__REACT_DEVTOOLS_GLOBAL_HOOK__': '({ isDisabled: true })'
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
+  }
 });
