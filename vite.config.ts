@@ -35,10 +35,13 @@ export default defineConfig({
       plugins: [],
     },
   },
+  // ✅ NETLIFY FIXES
+  base: './',
   root: path.resolve(import.meta.dirname, "client"),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
+    sourcemap: false,
   },
   server: {
     host: "0.0.0.0",
@@ -48,10 +51,9 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
-  // ✅ FIXED DEFINE SECTION
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
-    '__REACT_DEVTOOLS_GLOBAL_HOOK__': 'undefined' // ✅ Simple fix
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+    '__REACT_DEVTOOLS_GLOBAL_HOOK__': 'undefined'
   },
   optimizeDeps: {
     include: ['react', 'react-dom']
