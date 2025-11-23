@@ -1,9 +1,9 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, PerspectiveCamera, Stars } from "@react-three/drei";
+import { Float, PerspectiveCamera, Stars, Text3D, OrbitControls } from "@react-three/drei";
 import { useRef, useState, Suspense, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import * as THREE from "three";
 
 // Custom cursor component
@@ -15,7 +15,6 @@ function CustomCursor() {
     const updateCursor = (e: MouseEvent) => {
       setPosition({ x: e.clientX, y: e.clientY });
       
-      // Check if hovering over clickable elements
       const target = e.target as HTMLElement;
       setIsPointer(
         window.getComputedStyle(target).cursor === 'pointer' ||
@@ -24,53 +23,60 @@ function CustomCursor() {
       );
     };
 
-    const handleMouseDown = () => {
-      document.documentElement.style.setProperty('--cursor-scale', '0.8');
-    };
-
-    const handleMouseUp = () => {
-      document.documentElement.style.setProperty('--cursor-scale', '1');
-    };
-
     document.addEventListener('mousemove', updateCursor);
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', updateCursor);
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
+    return () => document.removeEventListener('mousemove', updateCursor);
   }, []);
 
   return (
     <>
       <motion.div
-        className="fixed w-6 h-6 bg-primary rounded-full mix-blend-difference pointer-events-none z-50"
+        className="fixed w-6 h-6 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full mix-blend-difference pointer-events-none z-50"
         animate={{
           x: position.x - 12,
           y: position.y - 12,
           scale: isPointer ? 1.5 : 1,
         }}
         transition={{ type: "spring", damping: 20, stiffness: 300, mass: 0.5 }}
-        style={{
-          background: isPointer ? '#ff00c8' : '#00d9ff',
-        }}
-      />
-      <motion.div
-        className="fixed w-12 h-12 border-2 border-primary rounded-full pointer-events-none z-50"
-        animate={{
-          x: position.x - 24,
-          y: position.y - 24,
-          scale: isPointer ? 1.2 : 1,
-        }}
-        transition={{ type: "spring", damping: 25, stiffness: 200, mass: 0.8 }}
       />
     </>
   );
 }
 
-// Enhanced geometric shapes with better animations
+// Floating Text Component
+function FloatingText() {
+  const textRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (textRef.current) {
+      textRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.1;
+      textRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.2;
+    }
+  });
+
+  return (
+    <Float speed={2} rotationIntensity={1} floatIntensity={2}>
+      <Text3D
+        ref={textRef}
+        font="/fonts/helvetiker_regular.typeface.json"
+        size={0.8}
+        height={0.2}
+        curveSegments={12}
+        position={[0, 0, 0]}
+      >
+        HK
+        <meshStandardMaterial
+          color="#00d9ff"
+          emissive="#00d9ff"
+          emissiveIntensity={0.5}
+          metalness={0.8}
+          roughness={0.2}
+        />
+      </Text3D>
+    </Float>
+  );
+}
+
+// Enhanced geometric shapes with particles
 function GeometricShape({ 
   position, 
   color, 
@@ -94,26 +100,27 @@ function GeometricShape({
       meshRef.current.rotation.z += delta * speed * 0.3;
       
       // Floating animation
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5) * 0.3;
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5 + position[0]) * 0.5;
     }
   });
 
   const getGeometry = () => {
     switch (shape) {
-      case "torus": return <torusGeometry args={[size, 0.3, 16, 100]} />;
+      case "torus": return <torusGeometry args={[size, 0.2, 16, 100]} />;
       case "cone": return <coneGeometry args={[size, size * 2, 8]} />;
+      case "octahedron": return <octahedronGeometry args={[size]} />;
       default: return <icosahedronGeometry args={[size, 0]} />;
     }
   };
 
   return (
-    <Float speed={2} rotationIntensity={2} floatIntensity={2}>
+    <Float speed={3} rotationIntensity={3} floatIntensity={3}>
       <mesh
         ref={meshRef}
         position={position}
         onPointerOver={() => setHover(true)}
         onPointerOut={() => setHover(false)}
-        scale={hovered ? size * 1.3 : size}
+        scale={hovered ? size * 1.5 : size}
       >
         {getGeometry()}
         <meshStandardMaterial
@@ -121,13 +128,54 @@ function GeometricShape({
           roughness={0.1}
           metalness={0.9}
           emissive={color}
-          emissiveIntensity={hovered ? 2 : 0.5}
+          emissiveIntensity={hovered ? 1 : 0.3}
           wireframe={!hovered}
           transparent
-          opacity={0.9}
+          opacity={0.8}
         />
       </mesh>
     </Float>
+  );
+}
+
+// Particle System
+function ParticleField({ count = 2000 }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  
+  const particlesPosition = useRef(new Float32Array(count * 3));
+  
+  useEffect(() => {
+    for (let i = 0; i < count; i++) {
+      particlesPosition.current[i * 3] = (Math.random() - 0.5) * 50;
+      particlesPosition.current[i * 3 + 1] = (Math.random() - 0.5) * 50;
+      particlesPosition.current[i * 3 + 2] = (Math.random() - 0.5) * 50;
+    }
+  }, [count]);
+
+  useFrame((state) => {
+    if (pointsRef.current) {
+      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.05;
+    }
+  });
+
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={particlesPosition.current}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.05}
+        color="#00d9ff"
+        transparent
+        opacity={0.6}
+        sizeAttenuation
+      />
+    </points>
   );
 }
 
@@ -136,69 +184,119 @@ function Scene() {
 
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, 0, isMobile ? 15 : 12]} />
-      <ambientLight intensity={0.6} />
-      <pointLight position={[10, 10, 10]} intensity={1} color="#ff00c8" />
-      <pointLight position={[-10, -10, 10]} intensity={0.8} color="#00d9ff" />
-      <pointLight position={[0, 10, -10]} intensity={0.5} color="#ff6b6b" />
+      <PerspectiveCamera makeDefault position={[0, 0, isMobile ? 20 : 15]} fov={75} />
+      <OrbitControls 
+        enableZoom={false} 
+        enablePan={false}
+        autoRotate
+        autoRotateSpeed={0.5}
+        maxPolarAngle={Math.PI / 2}
+        minPolarAngle={Math.PI / 3}
+      />
       
-      {/* Enhanced stars */}
+      <ambientLight intensity={0.3} />
+      <pointLight position={[10, 10, 10]} intensity={1.5} color="#00d9ff" />
+      <pointLight position={[-10, -10, 10]} intensity={1} color="#ff00c8" />
+      <pointLight position={[0, 10, -10]} intensity={0.8} color="#ff6b35" />
+      
+      {/* Enhanced stars with glow */}
       <Stars 
         radius={100} 
         depth={50} 
-        count={isMobile ? 2000 : 5000} 
-        factor={4} 
+        count={isMobile ? 3000 : 8000} 
+        factor={6} 
         saturation={0} 
         fade 
-        speed={1} 
+        speed={2}
       />
       
-      {/* More diverse shapes */}
+      {/* Particle Field */}
+      <ParticleField count={isMobile ? 1000 : 2000} />
+      
+      {/* Geometric Shapes */}
       {isMobile ? (
         // Mobile optimized
         <>
-          <GeometricShape position={[0, 0, 0]} color="#00d9ff" speed={0.4} size={1} shape="icosahedron" />
-          <GeometricShape position={[-3, 2, -2]} color="#ff00c8" speed={0.3} size={0.8} shape="torus" />
-          <GeometricShape position={[3, -1, -3]} color="#ff6b6b" speed={0.5} size={0.7} shape="cone" />
+          <GeometricShape position={[2, 1, -5]} color="#00d9ff" speed={0.4} size={1.2} shape="icosahedron" />
+          <GeometricShape position={[-3, -1, -8]} color="#ff00c8" speed={0.3} size={1} shape="torus" />
+          <GeometricShape position={[4, 2, -6]} color="#ff6b35" speed={0.5} size={0.8} shape="octahedron" />
         </>
       ) : (
         // Desktop full experience
         <>
-          <GeometricShape position={[0, 0, 0]} color="#00d9ff" speed={0.4} size={1.2} shape="icosahedron" />
-          <GeometricShape position={[-4, 3, -4]} color="#ff00c8" speed={0.3} size={1} shape="torus" />
-          <GeometricShape position={[4, -2, -3]} color="#ff6b6b" speed={0.5} size={0.9} shape="cone" />
-          <GeometricShape position={[-2, -3, -5]} color="#00d9ff" speed={0.6} size={0.8} shape="icosahedron" />
-          <GeometricShape position={[3, 4, -2]} color="#ff00c8" speed={0.2} size={0.7} shape="torus" />
+          <GeometricShape position={[3, 2, -8]} color="#00d9ff" speed={0.4} size={1.5} shape="icosahedron" />
+          <GeometricShape position={[-5, 3, -10]} color="#ff00c8" speed={0.3} size={1.2} shape="torus" />
+          <GeometricShape position={[6, -2, -7]} color="#ff6b35" speed={0.5} size={1} shape="cone" />
+          <GeometricShape position={[-3, -4, -12]} color="#00d9ff" speed={0.6} size={0.9} shape="octahedron" />
+          <GeometricShape position={[4, 5, -9]} color="#ff00c8" speed={0.2} size={0.8} shape="torus" />
+          <GeometricShape position={[-6, 1, -11]} color="#ff6b35" speed={0.4} size={1.1} shape="icosahedron" />
         </>
       )}
     </>
   );
 }
 
-// Loading animation with game style
+// GameLoader component ko replace karo with this:
 function GameLoader() {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(timer);
+          return 100;
+        }
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black z-50">
-      <div className="text-center">
-        <div className="relative w-20 h-20 mb-6 mx-auto">
-          <div className="absolute inset-0 border-4 border-primary/30 rounded-full"></div>
-          <div className="absolute inset-2 border-4 border-transparent border-t-primary rounded-full animate-spin"></div>
-          <div className="absolute inset-4 border-4 border-transparent border-b-secondary rounded-full animate-spin" style={{ animationDirection: 'reverse' }}></div>
-        </div>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-white text-lg font-mono tracking-widest"
-        >
-          LOADING PORTFOLIO
-        </motion.p>
+      <div className="text-center space-y-8">
         <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: "100%" }}
-          transition={{ duration: 2, delay: 0.8 }}
-          className="h-1 bg-gradient-to-r from-primary to-secondary mt-4 rounded-full"
-        />
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", duration: 1 }}
+          className="relative"
+        >
+          {/* Original Black Loader Design */}
+          <div className="w-32 h-32 border-4 border-primary/30 rounded-full animate-spin">
+            <div className="w-24 h-24 border-4 border-transparent border-t-secondary rounded-full animate-spin absolute top-4 left-4" />
+          </div>
+          <Sparkles className="w-8 h-8 text-primary absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+        </motion.div>
+        
+        <div className="space-y-4">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="text-2xl font-bold text-white"
+          >
+            LOADING PORTFOLIO
+          </motion.h2>
+          
+          <div className="w-80 h-2 bg-gray-800 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
+            />
+          </div>
+          
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="text-primary font-mono text-sm"
+          >
+            {Math.round(progress)}% LOADED
+          </motion.p>
+        </div>
       </div>
     </div>
   );
@@ -210,61 +308,32 @@ export default function Hero() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 3000);
+    }, 4000);
 
     return () => clearTimeout(timer);
   }, []);
 
   const scrollToProjects = () => {
-    const element = document.getElementById('projects');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const scrollToContact = () => {
-    const element = document.getElementById('contact');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  // Easter egg - Konami code
-  useEffect(() => {
-    const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
-    let currentIndex = 0;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === konamiCode[currentIndex]) {
-        currentIndex++;
-        if (currentIndex === konamiCode.length) {
-          // Activate easter egg
-          document.body.style.background = 'linear-gradient(45deg, #ff00c8, #00d9ff, #ff6b6b)';
-          setTimeout(() => {
-            document.body.style.background = '';
-          }, 5000);
-          currentIndex = 0;
-        }
-      } else {
-        currentIndex = 0;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   if (isLoading) {
     return <GameLoader />;
   }
 
   return (
-    <section id="home" className="relative h-screen w-full flex items-center overflow-hidden">
+    <section id="home" className="relative h-screen w-full flex items-center overflow-hidden bg-gradient-to-br from-gray-900 via-purple-900 to-black">
       <CustomCursor />
       
       {/* 3D Background */}
       <div className="absolute inset-0 z-0">
-        <Suspense fallback={<div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20" />}>
+        <Suspense fallback={
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-purple-900/30 to-gray-900" />
+        }>
           <Canvas
             dpr={[1, 2]}
             gl={{ 
@@ -272,7 +341,6 @@ export default function Hero() {
               alpha: true,
               powerPreference: "high-performance"
             }}
-            performance={{ min: 0.8 }}
           >
             <Scene />
           </Canvas>
@@ -280,47 +348,24 @@ export default function Hero() {
       </div>
 
       {/* Animated gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background/40 via-purple-900/20 to-background/60 z-0" />
-
-      {/* Floating particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-primary rounded-full"
-            initial={{
-              x: Math.random() * window.innerWidth,
-              y: Math.random() * window.innerHeight,
-            }}
-            animate={{
-              y: [null, -100, null],
-              x: [null, Math.sin(i) * 50, null],
-            }}
-            transition={{
-              duration: 3 + Math.random() * 2,
-              repeat: Infinity,
-              delay: Math.random() * 2,
-            }}
-          />
-        ))}
-      </div>
+      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-purple-900/10 to-black/70 z-0" />
 
       {/* Content */}
       <div className="container mx-auto px-4 sm:px-6 z-10 relative">
         <div className="max-w-4xl">
-          {/* Animated title with typewriter effect */}
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.5 }}
           >
             <motion.h2
-              className="text-base sm:text-lg md:text-xl font-medium text-secondary mb-3 sm:mb-4 tracking-widest uppercase"
+              className="text-lg md:text-xl font-medium text-cyan-400 mb-4 tracking-widest uppercase flex items-center gap-3"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
             >
-              Full Stack Developer
+              <Sparkles className="w-5 h-5" />
+              Full Stack Developer & Designer
             </motion.h2>
           </motion.div>
 
@@ -328,23 +373,24 @@ export default function Hero() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.8 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold font-display tracking-tight leading-tight sm:leading-tighter mb-4 sm:mb-6"
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold leading-tight sm:leading-tighter mb-6"
           >
             <motion.span
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 1.2 }}
-              className="block"
+              className="block text-white"
             >
-              Himanshu
+              HIMANSHU
             </motion.span>
+            
             <motion.span
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 1.5 }}
-              className="text-gradient block mt-2 bg-gradient-to-r from-primary via-secondary to-purple-400 bg-clip-text text-transparent"
+              className="block bg-gradient-to-r from-cyan-400 via-purple-500 to-cyan-400 bg-clip-text text-transparent mt-2"
             >
-              Kanojiya
+              KANOJIYA
             </motion.span>
           </motion.h1>
 
@@ -352,11 +398,11 @@ export default function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 1.8 }}
-            className="text-muted-foreground text-lg sm:text-xl md:text-2xl max-w-2xl mb-6 sm:mb-8 md:mb-10 leading-relaxed sm:leading-loose font-light"
+            className="text-gray-300 text-xl md:text-2xl max-w-2xl mb-8 leading-relaxed font-light"
           >
-            Crafting <span className="text-primary font-semibold">digital experiences</span> that blend 
+            Crafting <span className="text-cyan-400 font-semibold">digital experiences</span> that blend 
             cutting-edge technology with stunning design. 
-            <span className="block mt-2">Full-stack developer passionate about innovation.</span>
+            <span className="block mt-3 text-purple-300">Innovating one pixel at a time.</span>
           </motion.p>
 
           <motion.div
@@ -368,12 +414,11 @@ export default function Hero() {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button 
                 size="lg" 
-                className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white rounded-full px-8 sm:px-10 h-14 sm:h-16 text-lg sm:text-xl group shadow-2xl shadow-primary/25"
+                className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white rounded-full px-8 sm:px-10 h-14 sm:h-16 text-lg shadow-2xl shadow-cyan-500/25 border-0"
                 onClick={scrollToProjects}
               >
-                <span className="relative z-10">Explore My Work</span>
-                <ArrowRight className="ml-3 w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-2 transition-transform" />
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="relative z-10">View My Work</span>
+                <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-2 transition-transform" />
               </Button>
             </motion.div>
             
@@ -381,17 +426,17 @@ export default function Hero() {
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="border-2 border-primary/50 text-primary hover:bg-primary/10 rounded-full px-8 sm:px-10 h-14 sm:h-16 text-lg sm:text-xl backdrop-blur-sm"
+                className="border-2 border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10 rounded-full px-8 sm:px-10 h-14 sm:h-16 text-lg backdrop-blur-sm"
                 onClick={scrollToContact}
               >
-                Let's Connect
+                Get In Touch
               </Button>
             </motion.div>
           </motion.div>
         </div>
       </div>
 
-      {/* Animated scroll indicator */}
+      {/* Scroll indicator */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -400,23 +445,19 @@ export default function Hero() {
       >
         <motion.div
           animate={{ y: [0, 10, 0] }}
-          transition={{ 
-            repeat: Infinity, 
-            duration: 2, 
-            ease: "easeInOut" 
-          }}
+          transition={{ repeat: Infinity, duration: 2 }}
           className="flex flex-col items-center gap-2"
         >
-          <div className="w-6 h-10 border-2 border-primary rounded-full flex justify-center p-1">
-            <div className="w-1 h-3 bg-primary rounded-full" />
+          <div className="w-6 h-10 border-2 border-cyan-400 rounded-full flex justify-center p-1">
+            <motion.div
+              animate={{ y: [0, 12, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="w-1 h-3 bg-cyan-400 rounded-full"
+            />
           </div>
-          <p className="text-xs text-primary/70 font-medium tracking-widest">SCROLL</p>
+          <p className="text-xs text-cyan-400/70 font-medium tracking-widest">SCROLL</p>
         </motion.div>
       </motion.div>
-
-      {/* Sound effects (optional) */}
-      <audio id="hover-sound" src="/sounds/hover.mp3" preload="auto" />
-      <audio id="click-sound" src="/sounds/click.mp3" preload="auto" />
     </section>
   );
 }
