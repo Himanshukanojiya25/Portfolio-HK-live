@@ -42,7 +42,7 @@ const limiter = rateLimit({
 app.use(limiter);
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
   credentials: true
 }));
 app.use(morgan('combined'));
@@ -64,6 +64,8 @@ app.use('/api/blogs', blogRoutes);
 app.use('/api/comments', commentsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics/advanced', advancedAnalyticsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

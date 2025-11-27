@@ -1,6 +1,6 @@
 import express from 'express';
 import analyticsController from '../controllers/analytics.controller.js';
-import authMiddleware from '../middleware/auth.middleware.js';
+import { protect, restrictTo } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -16,27 +16,27 @@ router.post('/engagement', analyticsController.updateEngagement);
  * @desc    Get dashboard analytics (Admin only)
  * @access  Private (Admin)
  */
-router.get('/dashboard', authMiddleware.protect, authMiddleware.restrictTo('admin'), analyticsController.getDashboardAnalytics);
+router.get('/dashboard', protect, restrictTo('admin'), analyticsController.getDashboardAnalytics);
 
 /**
  * @route   GET /api/analytics/daily
  * @desc    Get daily analytics for charts (Admin only)
  * @access  Private (Admin)
  */
-router.get('/daily', authMiddleware.protect, authMiddleware.restrictTo('admin'), analyticsController.getDailyAnalytics);
+router.get('/daily', protect, restrictTo('admin'), analyticsController.getDailyAnalytics);
 
 /**
  * @route   GET /api/analytics/stats
  * @desc    Get visitor statistics (Admin only)
  * @access  Private (Admin)
  */
-router.get('/stats', authMiddleware.protect, authMiddleware.restrictTo('admin'), analyticsController.getVisitorStats);
+router.get('/stats', protect, restrictTo('admin'), analyticsController.getVisitorStats);
 
 /**
  * @route   DELETE /api/analytics/cleanup
  * @desc    Clean up old analytics data (Admin only)
  * @access  Private (Admin)
  */
-router.delete('/cleanup', authMiddleware.protect, authMiddleware.restrictTo('admin'), analyticsController.cleanupData);
+router.delete('/cleanup', protect, restrictTo('admin'), analyticsController.cleanupData);
 
 export default router;

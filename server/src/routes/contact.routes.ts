@@ -1,41 +1,41 @@
 import express from 'express';
 import contactController from '../controllers/contact.controller.js';
+import authMiddleware from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-/**
- * @route   POST /api/contact
- * @desc    Create new contact submission
- * @access  Public
- */
+// Public route - anyone can submit contact form
 router.post('/', contactController.createContact);
 
-/**
- * @route   GET /api/contact
- * @desc    Get all contacts (Admin only - will add auth middleware later)
- * @access  Private (Admin)
- */
-router.get('/', contactController.getAllContacts);
+// Admin protected routes - for managing contact messages
+router.use(authMiddleware.protect, authMiddleware.restrictTo('admin'));
 
 /**
- * @route   GET /api/contact/:id
- * @desc    Get contact by ID (Admin only)
+ * @route   GET /api/contact/admin/messages
+ * @desc    Get all contact messages (Admin only)
  * @access  Private (Admin)
  */
-router.get('/:id', contactController.getContactById);
+router.get('/admin/messages', contactController.getAllContacts);
 
 /**
- * @route   PATCH /api/contact/:id/read
+ * @route   GET /api/contact/admin/messages/:id
+ * @desc    Get contact message by ID (Admin only)
+ * @access  Private (Admin)
+ */
+router.get('/admin/messages/:id', contactController.getContactById);
+
+/**
+ * @route   PATCH /api/contact/admin/messages/:id/read
  * @desc    Mark contact as read (Admin only)
  * @access  Private (Admin)
  */
-router.patch('/:id/read', contactController.markAsRead);
+router.patch('/admin/messages/:id/read', contactController.markAsRead);
 
 /**
- * @route   PATCH /api/contact/:id/replied
+ * @route   PATCH /api/contact/admin/messages/:id/replied
  * @desc    Mark contact as replied (Admin only)
  * @access  Private (Admin)
  */
-router.patch('/:id/replied', contactController.markAsReplied);
+router.patch('/admin/messages/:id/replied', contactController.markAsReplied);
 
 export default router;

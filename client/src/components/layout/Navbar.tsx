@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Github, Linkedin, Mail, Instagram, MessageCircle, Sparkles } from "lucide-react";
+import { Menu, X, Github, Linkedin, Mail, Instagram, MessageCircle, Sparkles, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/context/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
   const [location] = useLocation();
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -79,22 +81,43 @@ export default function Navbar() {
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  // Touch handling for mobile
+  useEffect(() => {
+    const handleTouchOutside = (event: TouchEvent) => {
+      const target = event.target as HTMLElement;
+      if (isOpen && !target.closest('[data-navbar]')) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('touchstart', handleTouchOutside);
+    return () => document.removeEventListener('touchstart', handleTouchOutside);
   }, [isOpen]);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
     } else {
       document.body.style.overflow = 'unset';
+      document.body.style.touchAction = 'unset';
     }
     
     return () => {
       document.body.style.overflow = 'unset';
+      document.body.style.touchAction = 'unset';
     };
   }, [isOpen]);
+
+  // Better mobile menu toggle
+  const toggleMenu = () => {
+    setIsOpen(!isOpen);
+  };
 
   return (
     <motion.nav
@@ -165,6 +188,23 @@ export default function Navbar() {
               </motion.button>
             ))}
             
+            {/* ✅ ADMIN BUTTON - ALWAYS VISIBLE TO PUBLIC */}
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Link href={user ? "/admin/dashboard" : "/admin/login"}>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="rounded-full border-primary/30 text-primary hover:bg-primary/10 min-h-[44px] px-4 font-semibold"
+                >
+                  <Shield size={16} className="mr-2" />
+                  {user ? "Admin" : "Admin Login"}
+                </Button>
+              </Link>
+            </motion.div>
+            
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -187,8 +227,9 @@ export default function Navbar() {
             whileTap={{ scale: 0.9 }}
           >
             <button 
-              onClick={() => setIsOpen(!isOpen)} 
-              className="text-white p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 min-h-[44px] min-w-[44px] flex items-center justify-center border border-white/10"
+              onClick={toggleMenu}
+              onTouchStart={toggleMenu}
+              className="text-white p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-300 min-h-[44px] min-w-[44px] flex items-center justify-center border border-white/10 touch-manipulation"
               aria-label="Toggle menu"
             >
               {isOpen ? <X size={20} /> : <Menu size={20} />}
@@ -201,25 +242,26 @@ export default function Navbar() {
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop with blur */}
+            {/* Backdrop with better touch */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-lg z-40 md:hidden"
+              className="fixed inset-0 bg-black/60 backdrop-blur-lg z-40 md:hidden touch-none"
               onClick={() => setIsOpen(false)}
+              onTouchStart={() => setIsOpen(false)}
             />
             
-            {/* Menu Content */}
+            {/* Menu Content with better positioning */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: -20 }}
+              initial={{ opacity: 0, scale: 0.95, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-20 left-4 right-4 p-6 rounded-3xl z-50 md:hidden max-h-[80vh] overflow-y-auto bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl shadow-primary/20"
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              transition={{ type: "spring", damping: 20, stiffness: 300 }}
+              className="fixed top-24 left-4 right-4 p-6 rounded-3xl z-50 md:hidden max-h-[75vh] overflow-y-auto bg-black/90 backdrop-blur-xl border border-white/10 shadow-2xl shadow-primary/20 touch-pan-y"
             >
-              {/* Navigation Links */}
-              <div className="flex flex-col gap-2 mb-6">
+              {/* Navigation Links with better touch */}
+              <div className="flex flex-col gap-3 mb-6">
                 {navLinks.map((link, index) => (
                   <motion.button
                     key={link.name}
@@ -227,7 +269,8 @@ export default function Navbar() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                     onClick={() => scrollToSection(link.href)}
-                    className={`text-lg font-medium text-left p-4 rounded-2xl transition-all duration-300 min-h-[60px] flex items-center gap-4 group ${
+                    onTouchStart={() => scrollToSection(link.href)}
+                    className={`text-lg font-medium text-left p-4 rounded-2xl transition-all duration-200 min-h-[60px] flex items-center gap-4 group active:scale-95 touch-manipulation ${
                       activeSection === link.href.substring(1)
                         ? 'text-primary bg-primary/10 border border-primary/20'
                         : 'text-white hover:text-primary hover:bg-white/5'
@@ -245,16 +288,42 @@ export default function Navbar() {
                 ))}
               </div>
 
-              {/* Hire Me Button */}
+              {/* Admin Button for Mobile - ALWAYS VISIBLE */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: navLinks.length * 0.1 }}
+                className="mb-4"
+              >
+                <Link href={user ? "/admin/dashboard" : "/admin/login"}>
+                  <Button 
+                    className="w-full border-primary/30 text-primary hover:bg-primary/10 rounded-2xl min-h-[60px] text-lg font-semibold active:scale-95 touch-manipulation"
+                    variant="outline"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Shield size={20} className="mr-3" />
+                    {user ? "Admin Panel" : "Admin Login"}
+                  </Button>
+                </Link>
+              </motion.div>
+
+              {/* Hire Me Button */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: (navLinks.length + 1) * 0.1 }}
                 className="mb-6"
               >
                 <Button 
-                  className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white rounded-2xl min-h-[60px] text-lg font-semibold shadow-lg shadow-primary/25"
-                  onClick={() => scrollToSection("#contact")}
+                  className="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white rounded-2xl min-h-[60px] text-lg font-semibold shadow-lg shadow-primary/25 active:scale-95 touch-manipulation"
+                  onClick={() => {
+                    scrollToSection("#contact");
+                    setIsOpen(false);
+                  }}
+                  onTouchStart={() => {
+                    scrollToSection("#contact");
+                    setIsOpen(false);
+                  }}
                 >
                   <Sparkles size={20} className="mr-3" />
                   Hire Me
@@ -281,7 +350,7 @@ export default function Navbar() {
                       transition={{ delay: (navLinks.length + 1) * 0.1 + index * 0.1 }}
                       whileHover={{ scale: 1.2, y: -2 }}
                       whileTap={{ scale: 0.9 }}
-                      className="p-3 bg-white/5 rounded-xl hover:bg-primary/20 hover:text-primary transition-all duration-300 border border-white/10 hover:border-primary/30 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                      className="p-3 bg-white/5 rounded-xl hover:bg-primary/20 hover:text-primary transition-all duration-300 border border-white/10 hover:border-primary/30 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
                       aria-label={social.label}
                     >
                       {social.icon}
@@ -296,7 +365,7 @@ export default function Navbar() {
                     transition={{ delay: (navLinks.length + 1) * 0.1 + 4 * 0.1 }}
                     whileHover={{ scale: 1.2, y: -2 }}
                     whileTap={{ scale: 0.9 }}
-                    className="p-3 bg-green-500/20 text-green-400 rounded-xl hover:bg-green-500/30 transition-all duration-300 border border-green-500/30 hover:border-green-400 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    className="p-3 bg-green-500/20 text-green-400 rounded-xl hover:bg-green-500/30 transition-all duration-300 border border-green-500/30 hover:border-green-400 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
                     aria-label="WhatsApp"
                   >
                     <MessageCircle size={18} />

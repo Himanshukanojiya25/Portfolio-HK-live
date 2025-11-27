@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Phone, MapPin, Send, MessageCircle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { contactAPI } from "@/services/contact"; // ✅ NEW IMPORT
 
 const formSchema = z.object({
   name: z.string().min(2, "Name is too short"),
@@ -152,16 +153,25 @@ export default function Contact() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast({
-      title: "🎉 Message Sent!",
-      description: "I'll get back to you within 24 hours.",
-    });
-    
-    form.reset();
-    setIsSubmitting(false);
+    try {
+      // ✅ NEW API CALL
+      await contactAPI.sendMessage(values);
+      
+      toast({
+        title: "🎉 Message Sent!",
+        description: "I'll get back to you within 24 hours.",
+      });
+      
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -331,34 +341,43 @@ export default function Contact() {
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white text-lg font-semibold">Email Address</FormLabel>
-                      <FormControl>
-                        <FloatingInput field={field} placeholder="your.email@example.com" />
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white text-lg font-semibold">Your Message</FormLabel>
-                      <FormControl>
-                        <FloatingTextarea field={field} placeholder="Tell me about your project, ideas, or just say hello..." />
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
+ <FormField
+  control={form.control}
+  name="email"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel htmlFor="contact-email" className="text-white text-lg font-semibold">Email Address</FormLabel>
+      <FormControl>
+        <FloatingInput 
+          field={field}
+          placeholder="your.email@example.com"
+          id="contact-email" // ✅ Unique id
+          autoComplete="email" // ✅ Autocomplete add karo
+        />
+      </FormControl>
+      <FormMessage className="text-red-400" />
+    </FormItem>
+  )}
+/>
 
+<FormField
+  control={form.control}
+  name="name"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel htmlFor="contact-name" className="text-white text-lg font-semibold">Your Name</FormLabel>
+      <FormControl>
+        <FloatingInput 
+          field={field}
+          placeholder="Enter your full name"
+          id="contact-name" // ✅ Unique id
+          autoComplete="name" // ✅ Autocomplete add karo
+        />
+      </FormControl>
+      <FormMessage className="text-red-400" />
+    </FormItem>
+  )}
+/>
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <Button 
                     type="submit" 

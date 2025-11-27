@@ -333,34 +333,34 @@ export const adminController = {
 
   // Get system health and performance metrics
   getSystemMetrics: async (req: AuthRequest, res: Response) => {
-  try {
-    // @ts-ignore - Ignore TypeScript errors for database commands
-    const dbStats = await Blog.db.db.command({ dbStats: 1 });
-    
-    const collections = ['blogs', 'projects', 'contacts', 'visitors', 'skills', 'comments'];
-    const collectionStats = await Promise.all(
-      collections.map(async (collection) => {
-        try {
-          // @ts-ignore
-          const count = await Blog.db.collection(collection).countDocuments();
-          // @ts-ignore
-          const size = await Blog.db.collection(collection).stats();
-          return {
-            name: collection,
-            count,
-            size: size.size,
-            storageSize: size.storageSize
-          };
-        } catch (error) {
-          return {
-            name: collection,
-            count: 0,
-            size: 0,
-            storageSize: 0
-          };
-        }
-      })
-    );
+    try {
+      // @ts-ignore - Ignore TypeScript errors for database commands
+      const dbStats = await Blog.db.db.command({ dbStats: 1 });
+      
+      const collections = ['blogs', 'projects', 'contacts', 'visitors', 'skills', 'comments'];
+      const collectionStats = await Promise.all(
+        collections.map(async (collection) => {
+          try {
+            // @ts-ignore
+            const count = await Blog.db.collection(collection).countDocuments();
+            // @ts-ignore
+            const size = await Blog.db.collection(collection).stats();
+            return {
+              name: collection,
+              count,
+              size: size.size,
+              storageSize: size.storageSize
+            };
+          } catch (error) {
+            return {
+              name: collection,
+              count: 0,
+              size: 0,
+              storageSize: 0
+            };
+          }
+        })
+      );
 
       // Get recent errors or issues (you can implement error logging)
       const systemInfo = {
@@ -388,6 +388,33 @@ export const adminController = {
       res.status(500).json({
         success: false,
         message: 'Failed to fetch system metrics'
+      });
+    }
+  },
+
+  // ✅ GET QUICK ACTIONS - PROPERLY ADDED AS SEPARATE METHOD
+  getQuickActions: async (req: AuthRequest, res: Response) => {
+    try {
+      const [recentProjects, recentContacts, popularSkills] = await Promise.all([
+        Project.find().sort({ createdAt: -1 }).limit(3).select('title status createdAt'),
+        Contact.find().sort({ createdAt: -1 }).limit(3).select('name email status createdAt'),
+        Skill.find({ isActive: true }).sort({ endorsementCount: -1 }).limit(5).select('name category endorsementCount')
+      ]);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          recentProjects,
+          recentContacts,
+          popularSkills
+        }
+      });
+
+    } catch (error) {
+      console.error('Get quick actions error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch quick actions data'
       });
     }
   }

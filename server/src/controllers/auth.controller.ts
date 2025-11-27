@@ -3,12 +3,15 @@ import User from '../models/User.model.js';
 import authUtils from '../utils/auth.utils.js';
 import { AuthRequest } from '../middleware/auth.middleware.js';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 
 export const authController = {
   // Register new admin
   register: async (req: Request, res: Response) => {
     try {
       const { name, email, password } = req.body;
+
+      console.log('👤 Registration attempt:', { email, name: name?.substring(0, 10) + '...' });
 
       // Validation
       if (!name || !email || !password) {
@@ -35,6 +38,8 @@ export const authController = {
         role: 'admin'
       });
 
+      console.log('✅ User created:', user.email);
+
       // Generate token
       const token = authUtils.generateToken({
         userId: user._id.toString(),
@@ -42,12 +47,14 @@ export const authController = {
         role: user.role
       });
 
+      console.log('✅ Token generated for:', user.email);
+
       res.status(201).json({
         success: true,
         message: 'Admin user created successfully',
         data: {
           user: {
-            id: user._id,
+            id: user._id.toString(), // ✅ Ensure string ID
             name: user.name,
             email: user.email,
             role: user.role
@@ -57,7 +64,7 @@ export const authController = {
       });
 
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('❌ Registration error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error during registration'
@@ -65,10 +72,12 @@ export const authController = {
     }
   },
 
-  // Login admin - ULTRA SIMPLE VERSION
+  // Login admin
   login: async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
+
+      console.log('🔐 Login attempt:', email);
 
       // Basic validation
       if (!email || !password) {
@@ -81,34 +90,42 @@ export const authController = {
       // Find user
       const user = await User.findOne({ email });
       if (!user) {
+        console.log('❌ User not found:', email);
         return res.status(401).json({
           success: false,
           message: 'Invalid email or password'
         });
       }
 
-      // ✅ SIMPLE PASSWORD CHECK - Direct bcrypt
+      console.log('✅ User found:', user.email);
+
+      // Password check
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
+        console.log('❌ Invalid password for:', email);
         return res.status(401).json({
           success: false,
           message: 'Invalid email or password'
         });
       }
+
+      console.log('✅ Password valid for:', email);
 
       // Generate token
       const token = authUtils.generateToken({
-        userId: user._id.toString(),
+        userId: user._id.toString(), // ✅ Convert to string
         email: user.email,
         role: user.role
       });
+
+      console.log('✅ Token generated successfully');
 
       res.status(200).json({
         success: true,
         message: 'Login successful',
         data: {
           user: {
-            id: user._id,
+            id: user._id.toString(), // ✅ Ensure string ID
             name: user.name,
             email: user.email,
             role: user.role
@@ -118,7 +135,7 @@ export const authController = {
       });
 
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error during login'
@@ -130,17 +147,64 @@ export const authController = {
   getProfile: async (req: AuthRequest, res: Response) => {
     try {
       const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not authenticated'
+        });
+      }
+
+      console.log('✅ Profile fetched for:', user.email);
+
       res.status(200).json({
         success: true,
         data: {
-          user
+          user: {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            role: user.role
+          }
         }
       });
     } catch (error) {
-      console.error('Get profile error:', error);
+      console.error('❌ Get profile error:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to fetch user profile'
+      });
+    }
+  },
+
+  // Verify token endpoint
+  verifyToken: async (req: Request, res: Response) => {
+    try {
+      const { token } = req.body;
+
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          message: 'Token is required'
+        });
+      }
+
+      const decoded = authUtils.verifyToken(token);
+      
+      res.status(200).json({
+        success: true,
+        data: {
+          valid: true,
+          user: decoded
+        }
+      });
+    } catch (error) {
+      res.status(200).json({
+        success: true,
+        data: {
+          valid: false,
+          error: error.message
+        }
       });
     }
   }
