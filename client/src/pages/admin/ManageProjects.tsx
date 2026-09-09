@@ -26,6 +26,37 @@ import {
   Globe
 } from 'lucide-react';
 
+// Define backend response type
+interface BackendProject {
+  _id: string;
+  id?: string;
+  title: string;
+  description: string;
+  shortDescription?: string;
+  category: string;
+  techStack: string[];
+  tech?: string[];
+  isFeatured?: boolean;
+  featured?: boolean;
+  featuredImage?: string;
+  image?: string;
+  liveUrl?: string;
+  repositoryUrl?: string;
+  links?: {
+    demo?: string;
+    github?: string;
+  };
+  status?: string;
+  viewCount?: number;
+}
+
+interface BackendResponse {
+  success?: boolean;
+  data?: BackendProject[];
+  projects?: BackendProject[];
+  pagination?: any;
+}
+
 export default function ManageProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
@@ -33,7 +64,12 @@ export default function ManageProjects() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [featuredFilter, setFeaturedFilter] = useState('all');
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isToggling, setIsToggling] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Get base URL from environment or use default
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     loadProjects();
@@ -45,12 +81,78 @@ export default function ManageProjects() {
 
   const loadProjects = async () => {
     try {
-      const response = await projectsAPI.getProjects();
-      setProjects(response.data);
-    } catch (error) {
+      console.log('🔄 Loading projects...');
+      setIsLoading(true);
+      
+      const token = localStorage.getItem('admin_token');
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.');
+      }
+      
+      // ✅ FIX: Add admin=true to get all projects including non-public
+      const response = await fetch(`${API_BASE_URL}/api/admin/projects?admin=true`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Session expired. Please login again.');
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: BackendResponse = await response.json();
+      console.log('📦 API Response:', data);
+      
+      let projectsArray: BackendProject[] = [];
+      
+      if (data.success && data.data) {
+        projectsArray = data.data;
+      } else if (Array.isArray(data)) {
+        projectsArray = data;
+      } else if (data && Array.isArray((data as any).data)) {
+        projectsArray = (data as any).data;
+      } else if (data && Array.isArray((data as any).projects)) {
+        projectsArray = (data as any).projects;
+      }
+      
+      console.log('📊 Raw projects:', projectsArray);
+      
+      const transformedProjects: Project[] = projectsArray.map((project: BackendProject) => ({
+        id: project._id || project.id || '',
+        title: project.title || 'Untitled',
+        description: project.description || '',
+        shortDescription: project.shortDescription || project.description?.substring(0, 100) || '',
+        category: project.category || 'web',
+        tech: project.techStack || project.tech || [],
+        featured: project.isFeatured || project.featured || false,
+        image: project.featuredImage || project.image || '',
+        links: {
+          demo: project.liveUrl || (project.links?.demo) || '#',
+          github: project.repositoryUrl || (project.links?.github) || '#'
+        },
+        gradient: 'from-blue-500 to-cyan-500',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: project.status || 'completed',
+        viewCount: project.viewCount || 0
+      }));
+      
+      console.log('✨ Transformed projects:', transformedProjects);
+      
+      setProjects(transformedProjects);
+      setFilteredProjects(transformedProjects);
+      
+    } catch (error: any) {
+      console.error('❌ Error loading projects:', error);
+      
       toast({
         title: 'Error',
-        description: 'Failed to load projects',
+        description: error.message || 'Failed to load projects',
         variant: 'destructive',
       });
     } finally {
@@ -61,7 +163,6 @@ export default function ManageProjects() {
   const filterProjects = () => {
     let filtered = projects;
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(project =>
         project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,12 +171,10 @@ export default function ManageProjects() {
       );
     }
 
-    // Category filter
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(project => project.category === categoryFilter);
     }
 
-    // Featured filter
     if (featuredFilter !== 'all') {
       filtered = filtered.filter(project => 
         featuredFilter === 'featured' ? project.featured : !project.featured
@@ -88,40 +187,145 @@ export default function ManageProjects() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this project?')) return;
 
+    setIsDeleting(id);
+    
     try {
-      await projectsAPI.deleteProject(id);
-      toast({
-        title: 'Success',
-        description: 'Project deleted successfully',
-        className: 'bg-green-500 text-white',
+      console.log('🗑️ Attempting to delete project with ID:', id);
+      
+      const token = localStorage.getItem('admin_token');
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.');
+      }
+      
+      console.log('🔑 Token found, sending DELETE request...');
+      
+      // ✅ FIX: Add admin=true to URL
+      let response = await fetch(`${API_BASE_URL}/api/admin/projects/${id}?admin=true`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      loadProjects();
-    } catch (error) {
+      
+      console.log('📡 DELETE Response status:', response.status);
+      
+      // If admin endpoint fails with 404, try the regular projects endpoint
+      if (response.status === 404) {
+        console.log('Admin endpoint returned 404, trying regular projects endpoint...');
+        response = await fetch(`${API_BASE_URL}/api/projects/${id}?admin=true`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('📡 Second attempt status:', response.status);
+      }
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response body:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText || 'Unknown error'}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Delete response:', data);
+      
+      if (data.success || data.message?.includes('deleted')) {
+        toast({
+          title: 'Success',
+          description: 'Project deleted successfully',
+          className: 'bg-green-500 text-white',
+        });
+        
+        // Remove the project from the state immediately
+        setProjects(prevProjects => prevProjects.filter(p => p.id !== id));
+        setFilteredProjects(prev => prev.filter(p => p.id !== id));
+        
+        // Optionally reload to ensure consistency
+        await loadProjects();
+      } else {
+        throw new Error(data.message || 'Failed to delete project');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error in delete operation:', error);
+      
       toast({
         title: 'Error',
-        description: 'Failed to delete project',
+        description: error.message || 'Failed to delete project. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsDeleting(null);
     }
   };
 
+  // ✅ FIXED: toggleFeatured function with proper admin=true and logging
   const toggleFeatured = async (project: Project) => {
+    if (isToggling === project.id) return; // Prevent double click
+    
+    setIsToggling(project.id);
+    
     try {
-      await projectsAPI.updateProject(project.id, {
-        featured: !project.featured
+      const token = localStorage.getItem('admin_token');
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.');
+      }
+      
+      const newFeaturedStatus = !project.featured;
+      
+      console.log(`🔄 Toggling featured for: ${project.title}`);
+      console.log(`📝 Current: ${project.featured} -> New: ${newFeaturedStatus}`);
+      
+      // ✅ FIX: Add admin=true query param and include isPublic
+      const response = await fetch(`${API_BASE_URL}/api/admin/projects/${project.id}?admin=true`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          isFeatured: newFeaturedStatus,
+          isPublic: true // Ensure project stays public
+        })
       });
-      toast({
-        title: 'Success',
-        description: `Project ${!project.featured ? 'added to' : 'removed from'} featured`,
-        className: 'bg-blue-500 text-white',
-      });
-      loadProjects();
-    } catch (error) {
+      
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Toggle response:', data);
+      
+      if (data.success) {
+        toast({
+          title: 'Success',
+          description: `Project ${newFeaturedStatus ? 'added to' : 'removed from'} featured`,
+          className: 'bg-blue-500 text-white',
+        });
+        
+        // ✅ Reload projects to refresh the list
+        await loadProjects();
+      } else {
+        throw new Error(data.message || 'Failed to update project');
+      }
+    } catch (error: any) {
+      console.error('❌ Error toggling featured:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update project',
+        description: error.message || 'Failed to update project',
         variant: 'destructive',
       });
+    } finally {
+      setIsToggling(null);
     }
   };
 
@@ -133,7 +337,7 @@ export default function ManageProjects() {
       value: projects.length,
       icon: Code2,
       color: 'from-blue-500 to-cyan-500',
-      change: '+2 this month'
+      change: `${projects.length} total`
     },
     {
       label: 'Featured',
@@ -147,7 +351,7 @@ export default function ManageProjects() {
       value: projects.reduce((acc, project) => acc + project.tech.length, 0),
       icon: Zap,
       color: 'from-purple-500 to-pink-500',
-      change: '15+ stacks'
+      change: 'Tech stacks'
     },
     {
       label: 'Live Demos',
@@ -292,7 +496,6 @@ export default function ManageProjects() {
             }}
           >
             <Card className="bg-white/5 backdrop-blur-xl border-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden">
-              {/* Animated gradient border */}
               <div className={`absolute inset-0 bg-gradient-to-r ${stat.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm`} />
               <div className="absolute inset-[1px] bg-gradient-to-br from-gray-900 to-black rounded-lg" />
               
@@ -340,7 +543,6 @@ export default function ManageProjects() {
         <Card className="bg-white/5 backdrop-blur-xl border-white/10">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4">
-              {/* Search */}
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 w-4 h-4" />
                 <Input
@@ -351,7 +553,6 @@ export default function ManageProjects() {
                 />
               </div>
               
-              {/* Category Filter */}
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
@@ -365,7 +566,6 @@ export default function ManageProjects() {
                 ))}
               </select>
 
-              {/* Featured Filter */}
               <select
                 value={featuredFilter}
                 onChange={(e) => setFeaturedFilter(e.target.value)}
@@ -449,12 +649,15 @@ export default function ManageProjects() {
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              {project.image && (
+                              {project.image && project.image !== '' && (
                                 <motion.img
                                   whileHover={{ scale: 1.1 }}
                                   src={project.image}
                                   alt={project.title}
                                   className="w-12 h-12 rounded-xl object-cover border border-white/10"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
                                 />
                               )}
                               <div>
@@ -476,9 +679,9 @@ export default function ManageProjects() {
                           
                           <TableCell>
                             <div className="flex flex-wrap gap-1 max-w-[150px]">
-                              {project.tech.slice(0, 2).map((tech) => (
+                              {project.tech.slice(0, 2).map((tech, idx) => (
                                 <Badge 
-                                  key={tech} 
+                                  key={`${project.id}-${tech}-${idx}`} 
                                   variant="secondary" 
                                   className="text-xs bg-white/10 text-white/80 border-white/10"
                                 >
@@ -501,10 +704,12 @@ export default function ManageProjects() {
                                   project.featured 
                                     ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0' 
                                     : 'bg-white/5 text-white/70 border-white/20 hover:bg-white/10'
-                                }`}
+                                } ${isToggling === project.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 onClick={() => toggleFeatured(project)}
                               >
-                                {project.featured ? (
+                                {isToggling === project.id ? (
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                ) : project.featured ? (
                                   <>
                                     <Star className="w-3 h-3 mr-1 fill-current" />
                                     Featured
@@ -531,7 +736,7 @@ export default function ManageProjects() {
                                 </motion.div>
                               )}
                               
-                              {project.links.github && (
+                              {project.links.github && project.links.github !== '#' && (
                                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                                   <Button
                                     size="sm"
@@ -560,10 +765,17 @@ export default function ManageProjects() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                                  className={`border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 ${
+                                    isDeleting === project.id ? 'opacity-50 cursor-not-allowed' : ''
+                                  }`}
                                   onClick={() => handleDelete(project.id)}
+                                  disabled={isDeleting === project.id}
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  {isDeleting === project.id ? (
+                                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
                                 </Button>
                               </motion.div>
                             </div>

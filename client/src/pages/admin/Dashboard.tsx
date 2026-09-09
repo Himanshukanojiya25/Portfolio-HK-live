@@ -5,14 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import { 
-  ArrowLeft, 
   Users, 
   Mail, 
   Folder, 
   BarChart3, 
-  Settings,
   Plus,
-  MessageSquare,
   Code2,
   TrendingUp,
   Sparkles,
@@ -20,17 +17,18 @@ import {
   Eye,
   Star,
   Activity,
-  Shield
+  Clock,
+  MessageSquare
 } from 'lucide-react';
 import { adminAPI } from '@/services/admin';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const [stats, setStats] = useState({
-    totalMessages: 0,
     totalProjects: 0,
     totalVisitors: 0,
     totalSkills: 0,
+    totalTestimonials: 0, // Changed from totalMessages
   });
   const [loading, setLoading] = useState(true);
   const [systemStatus, setSystemStatus] = useState({
@@ -57,19 +55,19 @@ export default function AdminDashboard() {
       console.log('✅ Dashboard data received:', statsData);
       
       setStats({
-        totalMessages: statsData.overview?.totalContacts || 12,
         totalProjects: statsData.overview?.totalProjects || 8,
         totalVisitors: statsData.analytics?.totalVisitors || 1542,
         totalSkills: statsData.overview?.totalSkills || 15,
+        totalTestimonials: 5, // Mock data for testimonials
       });
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
       // Fallback to mock data with enhanced numbers
       setStats({
-        totalMessages: 24,
         totalProjects: 12,
         totalVisitors: 2847,
         totalSkills: 18,
+        totalTestimonials: 8,
       });
     } finally {
       setLoading(false);
@@ -91,11 +89,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    console.log('🚪 Logging out user...');
-    logout();
-  };
-
+  // QUICK ACTIONS - 4 ITEMS ONLY (Testimonials included)
   const quickActions = [
     {
       icon: <Plus className="w-5 h-5" />,
@@ -116,15 +110,6 @@ export default function AdminDashboard() {
       animation: 'hover:scale-105 hover:-rotate-3'
     },
     {
-      icon: <MessageSquare className="w-5 h-5" />,
-      title: 'View Messages',
-      description: 'Check contact messages',
-      href: '/admin/messages',
-      color: 'from-purple-500 to-pink-500',
-      gradient: 'bg-gradient-to-r from-purple-500 to-pink-500',
-      animation: 'hover:scale-105 hover:rotate-2'
-    },
-    {
       icon: <TrendingUp className="w-5 h-5" />,
       title: 'Analytics',
       description: 'View performance insights',
@@ -134,15 +119,6 @@ export default function AdminDashboard() {
       animation: 'hover:scale-105 hover:-rotate-2'
     },
     {
-      icon: <FileText className="w-5 h-5" />,
-      title: 'Write Blog',
-      description: 'Create new blog post',
-      href: '/admin/blog/new',
-      color: 'from-indigo-500 to-purple-500',
-      gradient: 'bg-gradient-to-r from-indigo-500 to-purple-500',
-      animation: 'hover:scale-105 hover:rotate-1'
-    },
-    {
       icon: <Star className="w-5 h-5" />,
       title: 'Testimonials',
       description: 'Manage testimonials',
@@ -150,42 +126,17 @@ export default function AdminDashboard() {
       color: 'from-yellow-500 to-orange-500',
       gradient: 'bg-gradient-to-r from-yellow-500 to-orange-500',
       animation: 'hover:scale-105 hover:-rotate-1'
-    },
-    {
-      icon: <Settings className="w-5 h-5" />,
-      title: 'Settings',
-      description: 'System configuration',
-      href: '/admin/settings',
-      color: 'from-gray-500 to-slate-500',
-      gradient: 'bg-gradient-to-r from-gray-500 to-slate-500',
-      animation: 'hover:scale-105 hover:rotate-2'
-    },
-    {
-      icon: <Shield className="w-5 h-5" />,
-      title: 'Security',
-      description: 'Security settings',
-      href: '/admin/security',
-      color: 'from-red-500 to-pink-500',
-      gradient: 'bg-gradient-to-r from-red-500 to-pink-500',
-      animation: 'hover:scale-105 hover:-rotate-2'
-    },
+    }
   ];
 
+  // STATS CARDS - 4 ITEMS (Messages replaced with Testimonials)
   const statsCards = [
-    { 
-      label: 'Total Messages', 
-      value: stats.totalMessages, 
-      icon: Mail,
-      change: '+2 today',
-      gradient: 'from-blue-500 to-cyan-500',
-      description: 'Contact form submissions'
-    },
     { 
       label: 'Projects', 
       value: stats.totalProjects, 
       icon: Folder,
       change: '3 featured',
-      gradient: 'from-green-500 to-emerald-500',
+      gradient: 'from-blue-500 to-cyan-500',
       description: 'Portfolio projects'
     },
     { 
@@ -193,7 +144,7 @@ export default function AdminDashboard() {
       value: stats.totalVisitors.toLocaleString(), 
       icon: Users,
       change: '+124 this week',
-      gradient: 'from-purple-500 to-pink-500',
+      gradient: 'from-green-500 to-emerald-500',
       description: 'Total site visitors'
     },
     { 
@@ -201,16 +152,25 @@ export default function AdminDashboard() {
       value: stats.totalSkills, 
       icon: Code2,
       change: '8 categories',
-      gradient: 'from-orange-500 to-red-500',
+      gradient: 'from-purple-500 to-pink-500',
       description: 'Technical skills'
+    },
+    { 
+      label: 'Testimonials', 
+      value: stats.totalTestimonials, 
+      icon: Star,
+      change: '2 featured',
+      gradient: 'from-orange-500 to-red-500',
+      description: 'Client testimonials'
     },
   ];
 
+  // RECENT ACTIVITIES - WITHOUT MESSAGES
   const recentActivities = [
     { 
-      action: 'New message from John Doe', 
+      action: 'New testimonial from John Doe', 
       time: '2 min ago', 
-      type: 'message',
+      type: 'testimonial',
       priority: 'high'
     },
     { 
@@ -230,13 +190,7 @@ export default function AdminDashboard() {
       time: '5 hours ago', 
       type: 'visitor',
       priority: 'low'
-    },
-    { 
-      action: 'Blog post "Next.js Best Practices" published', 
-      time: '1 day ago', 
-      type: 'blog',
-      priority: 'medium'
-    },
+    }
   ];
 
   const systemServices = [
@@ -408,104 +362,7 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* Header Section */}
-      <motion.div
-        initial={{ opacity: 0, y: -30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8"
-      >
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
-            <Link href="/">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button 
-                  variant="outline" 
-                  className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white hover:border-slate-500 transition-all duration-200"
-                  size="sm"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Home
-                </Button>
-              </motion.div>
-            </Link>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="relative"
-            >
-              <div className="w-14 h-14 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-2xl">
-                <Sparkles className="w-7 h-7 text-white" />
-              </div>
-              <motion.div
-                animate={{ 
-                  rotate: [0, 10, -10, 0],
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full border-4 border-slate-900"
-              />
-            </motion.div>
-            
-            <div>
-              <motion.h1
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-300 bg-clip-text text-transparent"
-              >
-                Admin Dashboard
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-                className="text-slate-400 mt-1 text-lg"
-              >
-                Welcome back, <span className="text-blue-400 font-semibold">{user?.name || 'Admin'}</span>! 👋
-              </motion.p>
-            </div>
-          </div>
-        </div>
-        
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 }}
-          className="flex items-center gap-3"
-        >
-          <div className="hidden lg:flex items-center space-x-4 bg-slate-800/50 backdrop-blur-xl rounded-2xl px-4 py-3 border border-slate-600/30">
-            <div className="text-right">
-              <p className="text-slate-300 text-sm font-medium">System Status</p>
-              <p className="text-green-400 text-sm font-semibold flex items-center">
-                <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                All Systems Operational
-              </p>
-            </div>
-            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/25"></div>
-          </div>
-          
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button 
-              onClick={handleLogout}
-              variant="outline"
-              className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 hover:border-red-400/50 transition-all duration-200 bg-red-500/5"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-
-      {/* Stats Grid */}
+      {/* Stats Grid - 4 CARDS */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -571,14 +428,14 @@ export default function AdminDashboard() {
         ))}
       </motion.div>
 
-      {/* Quick Actions Grid */}
+      {/* Quick Actions Grid - NOW 4 ACTIONS (grid-cols-4) */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 relative z-10"
       >
-        {quickActions.slice(0, 4).map((action, index) => (
+        {quickActions.map((action, index) => (
           <motion.div
             key={action.title}
             variants={itemVariants}
@@ -598,57 +455,9 @@ export default function AdminDashboard() {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                 
                 <CardContent className="p-6 relative z-10">
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center text-center gap-4">
                     <motion.div
                       whileHover={{ scale: 1.1, rotate: 5 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                      className={`p-3 rounded-xl ${action.gradient} shadow-lg group-hover:shadow-2xl transition-all duration-300`}
-                    >
-                      {action.icon}
-                    </motion.div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-slate-300 group-hover:bg-clip-text transition-all duration-300">
-                        {action.title}
-                      </h3>
-                      <p className="text-slate-400 group-hover:text-slate-300 transition-colors duration-300 text-sm leading-relaxed">
-                        {action.description}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Additional Quick Actions Row */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 relative z-10"
-      >
-        {quickActions.slice(4, 8).map((action, index) => (
-          <motion.div
-            key={action.title}
-            variants={itemVariants}
-            whileHover={{ 
-              scale: 1.05,
-              rotate: index % 2 === 0 ? -1 : 1,
-              transition: { duration: 0.3, ease: "easeOut" }
-            }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Link href={action.href}>
-              <Card className={`bg-slate-800/60 backdrop-blur-xl border-slate-600/30 hover:border-slate-500/50 transition-all duration-500 cursor-pointer h-full relative overflow-hidden group ${action.animation}`}>
-                <div className={`absolute inset-0 ${action.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                
-                <CardContent className="p-6 relative z-10">
-                  <div className="flex items-start gap-4">
-                    <motion.div
-                      whileHover={{ scale: 1.1, rotate: -5 }}
                       transition={{ type: "spring", stiffness: 300 }}
                       className={`p-3 rounded-xl ${action.gradient} shadow-lg group-hover:shadow-2xl transition-all duration-300`}
                     >
@@ -718,11 +527,10 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      activity.type === 'message' ? 'bg-blue-500/20 text-blue-400' :
+                      activity.type === 'testimonial' ? 'bg-yellow-500/20 text-yellow-400' :
                       activity.type === 'project' ? 'bg-green-500/20 text-green-400' :
                       activity.type === 'skill' ? 'bg-purple-500/20 text-purple-400' :
-                      activity.type === 'visitor' ? 'bg-orange-500/20 text-orange-400' :
-                      'bg-indigo-500/20 text-indigo-400'
+                      'bg-orange-500/20 text-orange-400'
                     }`}>
                       {activity.type}
                     </div>
@@ -858,17 +666,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-// Add missing Clock icon component
-const Clock = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-// Add missing FileText icon component  
-const FileText = ({ className }: { className?: string }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);

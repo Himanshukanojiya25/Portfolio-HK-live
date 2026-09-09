@@ -25,20 +25,24 @@ export default function ManageTestimonials() {
     filterTestimonials();
   }, [testimonials, searchTerm, selectedStatus]);
 
-  const loadTestimonials = async () => {
-    try {
-      const response = await testimonialsAPI.getTestimonials();
-      setTestimonials(response.data);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load testimonials',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const loadTestimonials = async () => {
+  try {
+    console.log('📊 Loading testimonials...');
+    const testimonials = await testimonialsAPI.getTestimonials();
+    console.log('📦 Testimonials loaded:', testimonials);
+    
+    setTestimonials(testimonials);
+  } catch (error) {
+    console.error('❌ Error loading testimonials:', error);
+    toast({
+      title: 'Error',
+      description: 'Failed to load testimonials',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const filterTestimonials = () => {
     let filtered = testimonials;
@@ -112,24 +116,23 @@ export default function ManageTestimonials() {
     }
   };
 
-  const toggleFeatured = async (testimonial: Testimonial) => {
-    try {
-      await testimonialsAPI.updateTestimonial(testimonial.id, {
-        featured: !testimonial.featured
-      });
-      toast({
-        title: 'Success',
-        description: `Testimonial ${!testimonial.featured ? 'added to' : 'removed from'} featured`,
-      });
-      loadTestimonials();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update testimonial',
-        variant: 'destructive',
-      });
-    }
-  };
+const toggleFeatured = async (testimonial: Testimonial) => {
+  try {
+    await testimonialsAPI.featureTestimonial(testimonial.id, !testimonial.featured);
+    toast({
+      title: 'Success',
+      description: `Testimonial ${!testimonial.featured ? 'added to' : 'removed from'} featured`,
+    });
+    loadTestimonials();
+  } catch (error) {
+    console.error('Error featuring testimonial:', error);
+    toast({
+      title: 'Error',
+      description: 'Failed to update testimonial',
+      variant: 'destructive',
+    });
+  }
+};    
 
   const updateRating = async (testimonial: Testimonial, newRating: number) => {
     try {

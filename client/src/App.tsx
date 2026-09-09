@@ -8,6 +8,13 @@ import Home from "@/pages/Home";
 import Footer from "@/components/layout/Footer";
 import { AuthProvider } from "./context/AuthContext";
 
+// ✅ PUBLIC PAGES (NEW)
+import ProjectsPage from "@/pages/ProjectsPage";
+import ProjectDetailsPage from "@/pages/ProjectDetailsPage";
+import SkillsPage from "@/pages/SkillsPage";
+import TestimonialsPage from "@/pages/TestimonialsPage";
+import ContactPage from "@/pages/ContactPage";
+
 // ✅ ADMIN IMPORTS
 import AdminLogin from "@/pages/admin/Login";
 import AdminDashboard from "@/pages/admin/Dashboard";
@@ -15,95 +22,153 @@ import ManageProjects from "@/pages/admin/ManageProjects";
 import ManageSkills from "@/pages/admin/ManageSkills";
 import ManageBlog from "@/pages/admin/ManageBlog";
 import ManageTestimonials from "@/pages/admin/ManageTestimonials";
-import ContactMessages from "@/pages/admin/ContactMessages"; // ✅ NEW
-import Analytics from "@/pages/admin/Analytics"; // ✅ NEW
+import Analytics from "@/pages/admin/Analytics";
+import VisitorDetails from "@/pages/admin/VisitorDetails";
 
 // ✅ ADMIN FORM PAGES
-import CreateProject from "@/pages/admin/forms/CreateProject"; // ✅ NEW
-import EditProject from "@/pages/admin/forms/EditProject"; // ✅ NEW
-import CreateSkill from "@/pages/admin/forms/CreateSkill"; // ✅ NEW
-import EditSkill from "@/pages/admin/forms/EditSkill"; // ✅ NEW
+import CreateProject from "@/pages/admin/forms/CreateProject";
+import EditProject from "@/pages/admin/forms/EditProject";
+import CreateSkill from "@/pages/admin/forms/CreateSkill";
+import EditSkill from "@/pages/admin/forms/EditSkill";
+import CreateTestimonial from '@/pages/admin/forms/CreateTestimonial';
+import EditTestimonial from '@/pages/admin/forms/EditTestimonial';
 
 // ✅ ADMIN LAYOUT
-import AdminLayout from "@/components/admin/AdminLayout"; // ✅ NEW
+import AdminLayout from "@/components/admin/AdminLayout";
+
+// ✅ IMPORT PROTECTED ROUTE
+import ProtectedRoute from "./components/common/ProtectedRoute";
 
 function Router() {
   return (
     <Switch>
+      {/* ========== PUBLIC ROUTES ========== */}
       <Route path="/" component={Home} />
+      <Route path="/projects" component={ProjectsPage} />
+      <Route path="/projects/:id">
+        {(params: { id: string }) => <ProjectDetailsPage projectId={params.id} />}
+      </Route>
+      <Route path="/skills" component={SkillsPage} />
+      <Route path="/testimonials" component={TestimonialsPage} />
+      <Route path="/contact" component={ContactPage} />
       
+      {/* ========== ADMIN ROUTES ========== */}
       {/* ✅ PUBLIC ADMIN ROUTE */}
       <Route path="/admin/login" component={AdminLogin} />
       
-      {/* ✅ PROTECTED ADMIN ROUTES WITH LAYOUT */}
+      {/* ✅ PROTECTED ADMIN ROUTES */}
       <Route path="/admin/dashboard">
-        <AdminLayout>
-          <AdminDashboard />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <AdminDashboard />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin/projects">
-        <AdminLayout>
-          <ManageProjects />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <ManageProjects />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin/projects/new">
-        <AdminLayout>
-          <CreateProject />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <CreateProject />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin/projects/edit/:id">
-        {(params) => (
-          <AdminLayout>
-            <EditProject projectId={params.id} />
-          </AdminLayout>
+        {(params: { id: string }) => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <EditProject projectId={params.id} />
+            </AdminLayout>
+          </ProtectedRoute>
         )}
       </Route>
       
       <Route path="/admin/skills">
-        <AdminLayout>
-          <ManageSkills />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <ManageSkills />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin/skills/new">
-        <AdminLayout>
-          <CreateSkill />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <CreateSkill />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
       <Route path="/admin/skills/edit/:id">
-        {(params) => (
-          <AdminLayout>
-            <EditSkill skillId={params.id} />
-          </AdminLayout>
+        {(params: { id: string }) => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <EditSkill skillId={params.id} />
+            </AdminLayout>
+          </ProtectedRoute>
         )}
       </Route>
       
       <Route path="/admin/blog">
-        <AdminLayout>
-          <ManageBlog />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <ManageBlog />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
+      {/* ✅ TESTIMONIALS ROUTES */}
       <Route path="/admin/testimonials">
-        <AdminLayout>
-          <ManageTestimonials />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <ManageTestimonials />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
-      <Route path="/admin/messages">
-        <AdminLayout>
-          <ContactMessages />
-        </AdminLayout>
+      <Route path="/admin/testimonials/new">
+        <ProtectedRoute>
+          <AdminLayout>
+            <CreateTestimonial />
+          </AdminLayout>
+        </ProtectedRoute>
       </Route>
       
+      <Route path="/admin/testimonials/edit/:id">
+        {(params: { id: string }) => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <EditTestimonial />
+            </AdminLayout>
+          </ProtectedRoute>
+        )}
+      </Route>
+      
+      {/* ✅ ANALYTICS ROUTES */}
       <Route path="/admin/analytics">
-        <AdminLayout>
-          <Analytics />
-        </AdminLayout>
+        <ProtectedRoute>
+          <AdminLayout>
+            <Analytics />
+          </AdminLayout>
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/admin/visitor/:visitorId">
+        {(params: { visitorId: string }) => (
+          <ProtectedRoute>
+            <AdminLayout>
+              <VisitorDetails />
+            </AdminLayout>
+          </ProtectedRoute>
+        )}
       </Route>
       
       <Route component={NotFound} />

@@ -5,7 +5,7 @@ dotenv.config();
 
 // Email transporter configuration
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({  // ✅ CORRECTION HERE: createTransport (not createTransporter)
     service: process.env.EMAIL_SERVICE || 'gmail',
     auth: {
       user: process.env.EMAIL_USER,

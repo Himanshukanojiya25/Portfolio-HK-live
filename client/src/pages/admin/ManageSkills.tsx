@@ -20,7 +20,8 @@ import {
   TrendingUp,
   Sparkles,
   Crown,
-  Target
+  Target,
+  Loader2
 } from 'lucide-react';
 
 export default function ManageSkills() {
@@ -39,20 +40,128 @@ export default function ManageSkills() {
     filterSkills();
   }, [skills, searchTerm, selectedCategory]);
 
-  const loadSkills = async () => {
-    try {
-      const response = await skillsAPI.getSkills();
-      setSkills(response.data);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load skills',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
+const loadSkills = async () => {
+  try {
+    console.log('🔄 [DEBUG] Loading skills started...');
+    setIsLoading(true);
+    
+    // METHOD 1: Try direct fetch with detailed logging
+    console.log('🔧 [DEBUG] Trying direct fetch...');
+    const token = localStorage.getItem('admin_token');
+    console.log('🔑 [DEBUG] Token exists:', !!token);
+    
+    const response = await fetch('http://localhost:5000/api/skills', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('📡 [DEBUG] Response status:', response.status);
+    console.log('📡 [DEBUG] Response headers:', response.headers);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [DEBUG] API Error Response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  };
+    
+    const rawData = await response.json();
+    console.log('📦 [DEBUG] RAW API RESPONSE:', rawData);
+    console.log('📦 [DEBUG] Type of rawData:', typeof rawData);
+    console.log('📦 [DEBUG] Is Array?', Array.isArray(rawData));
+    
+    if (rawData && typeof rawData === 'object') {
+      console.log('🔍 [DEBUG] Object keys:', Object.keys(rawData));
+      
+      // Check if there's a success property
+      if ('success' in rawData) {
+        console.log('✅ [DEBUG] success:', rawData.success);
+      }
+      
+      // Check if there's a data property
+      if ('data' in rawData) {
+        console.log('📊 [DEBUG] data type:', typeof rawData.data);
+        console.log('📊 [DEBUG] data is array?', Array.isArray(rawData.data));
+        if (Array.isArray(rawData.data)) {
+          console.log('📊 [DEBUG] data length:', rawData.data.length);
+          console.log('📊 [DEBUG] first item:', rawData.data[0]);
+        }
+      }
+      
+      // Check if there's a skills property
+      if ('skills' in rawData) {
+        console.log('💼 [DEBUG] skills type:', typeof rawData.skills);
+        console.log('💼 [DEBUG] skills is array?', Array.isArray(rawData.skills));
+      }
+    }
+    
+    // PROCESS THE DATA
+    let skillsArray: Skill[] = [];
+    
+    if (Array.isArray(rawData)) {
+      // Case 1: Direct array
+      console.log('✅ Case 1: Direct array response');
+      skillsArray = rawData;
+    } 
+    else if (rawData && rawData.data && Array.isArray(rawData.data)) {
+      // Case 2: { data: [...] }
+      console.log('✅ Case 2: data array response');
+      skillsArray = rawData.data;
+    }
+    else if (rawData && rawData.skills && Array.isArray(rawData.skills)) {
+      // Case 3: { skills: [...] }
+      console.log('✅ Case 3: skills array response');
+      skillsArray = rawData.skills;
+    }
+    else if (rawData && rawData.success && rawData.data && Array.isArray(rawData.data)) {
+      // Case 4: { success: true, data: [...] }
+      console.log('✅ Case 4: success.data array response');
+      skillsArray = rawData.data;
+    }
+    else {
+      console.error('❌ [DEBUG] Unknown response format');
+      console.error('❌ [DEBUG] Full response:', JSON.stringify(rawData, null, 2));
+    }
+    
+    console.log('✨ [DEBUG] Final skills array:', skillsArray);
+    console.log('✨ [DEBUG] Skills count:', skillsArray.length);
+    
+    // Set the skills
+    setSkills(skillsArray);
+    
+    if (skillsArray.length > 0) {
+      toast({
+        title: 'Success',
+        description: `Loaded ${skillsArray.length} skills`,
+        className: 'bg-green-500 text-white',
+      });
+    } else {
+      toast({
+        title: 'Info',
+        description: 'No skills found in database',
+        variant: 'default',
+      });
+    }
+    
+  } catch (error: any) {
+    console.error('❌ [DEBUG] Error in loadSkills:', error);
+    console.error('❌ [DEBUG] Error stack:', error.stack);
+    
+    toast({
+      title: 'Error',
+      description: error.message || 'Failed to load skills',
+      variant: 'destructive',
+    });
+    
+    // Set empty array on error
+    setSkills([]);
+  } finally {
+    console.log('🏁 [DEBUG] loadSkills finished');
+    setIsLoading(false);
+  }
+};
 
   const filterSkills = () => {
     let filtered = skills;
@@ -77,13 +186,17 @@ export default function ManageSkills() {
     if (!confirm('Are you sure you want to delete this skill?')) return;
 
     try {
-      await skillsAPI.deleteSkill(id);
-      toast({
-        title: 'Success',
-        description: 'Skill deleted successfully',
-        className: 'bg-green-500 text-white',
-      });
-      loadSkills();
+      const success = await skillsAPI.deleteSkill(id);
+      if (success) {
+        toast({
+          title: 'Success',
+          description: 'Skill deleted successfully',
+          className: 'bg-green-500 text-white',
+        });
+        loadSkills();
+      } else {
+        throw new Error('Delete failed');
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -95,15 +208,17 @@ export default function ManageSkills() {
 
   const toggleFeatured = async (skill: Skill) => {
     try {
-      await skillsAPI.updateSkill(skill.id, {
-        featured: !skill.featured
-      });
-      toast({
-        title: 'Success',
-        description: `Skill ${!skill.featured ? 'added to' : 'removed from'} featured`,
-        className: 'bg-blue-500 text-white',
-      });
-      loadSkills();
+      const updatedSkill = await skillsAPI.toggleFeatured(skill.id);
+      if (updatedSkill) {
+        toast({
+          title: 'Success',
+          description: `Skill ${!skill.featured ? 'added to' : 'removed from'} featured`,
+          className: 'bg-blue-500 text-white',
+        });
+        loadSkills();
+      } else {
+        throw new Error('Update failed');
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -115,15 +230,19 @@ export default function ManageSkills() {
 
   const updateSkillLevel = async (skill: Skill, newLevel: number) => {
     try {
-      await skillsAPI.updateSkill(skill.id, {
+      const updatedSkill = await skillsAPI.updateSkill(skill.id, {
         level: newLevel
       });
-      toast({
-        title: 'Success',
-        description: 'Skill level updated',
-        className: 'bg-purple-500 text-white',
-      });
-      loadSkills();
+      if (updatedSkill) {
+        toast({
+          title: 'Success',
+          description: 'Skill level updated',
+          className: 'bg-purple-500 text-white',
+        });
+        loadSkills();
+      } else {
+        throw new Error('Update failed');
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -133,7 +252,8 @@ export default function ManageSkills() {
     }
   };
 
-  const categories = ['All', ...new Set(skills.map(skill => skill.category))];
+  const safeSkills = Array.isArray(skills) ? skills : [];
+  const categories = ['All', ...new Set(safeSkills.map(skill => skill.category).filter(Boolean))];
 
   const getSkillsByCategory = () => {
     const categoriesMap: Record<string, Skill[]> = {};
@@ -151,28 +271,30 @@ export default function ManageSkills() {
   const stats = [
     {
       label: 'Total Skills',
-      value: skills.length,
+      value: safeSkills.length,
       icon: Code2,
       color: 'from-blue-500 to-cyan-500',
-      change: '+5 this month'
+      change: `${safeSkills.length} skills`
     },
     {
       label: 'Featured',
-      value: skills.filter(s => s.featured).length,
+      value: safeSkills.filter(s => s.featured).length,
       icon: Crown,
       color: 'from-yellow-500 to-orange-500',
       change: 'Showcase skills'
     },
     {
       label: 'Categories',
-      value: new Set(skills.map(s => s.category)).size,
+      value: new Set(safeSkills.map(s => s.category)).size,
       icon: Layers,
       color: 'from-purple-500 to-pink-500',
       change: 'Diverse stack'
     },
     {
       label: 'Avg. Level',
-      value: Math.round(skills.reduce((acc, skill) => acc + skill.level, 0) / skills.length) || 0,
+      value: safeSkills.length > 0 
+        ? Math.round(safeSkills.reduce((acc, skill) => acc + skill.level, 0) / safeSkills.length)
+        : 0,
       icon: TrendingUp,
       color: 'from-green-500 to-emerald-500',
       change: 'Growing expertise'
@@ -220,7 +342,7 @@ export default function ManageSkills() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 p-4 sm:p-6 relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
@@ -274,10 +396,10 @@ export default function ManageSkills() {
               <Zap className="w-8 h-8 text-yellow-400" />
             </motion.div>
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 Manage Skills
               </h1>
-              <p className="text-white/60 mt-1">Organize and showcase your technical expertise</p>
+              <p className="text-white/60 mt-1 text-sm sm:text-base">Organize and showcase your technical expertise</p>
             </div>
           </div>
         </div>
@@ -300,7 +422,7 @@ export default function ManageSkills() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-10"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 relative z-10"
       >
         {stats.map((stat, index) => (
           <motion.div
@@ -313,16 +435,15 @@ export default function ManageSkills() {
             }}
           >
             <Card className="bg-white/5 backdrop-blur-xl border-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden">
-              {/* Animated gradient border */}
               <div className={`absolute inset-0 bg-gradient-to-r ${stat.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm`} />
               <div className="absolute inset-[1px] bg-gradient-to-br from-gray-900 to-black rounded-lg" />
               
-              <CardContent className="p-6 relative z-10">
+              <CardContent className="p-4 sm:p-6 relative z-10">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-white/60 text-sm font-medium">{stat.label}</p>
                     <motion.p 
-                      className="text-3xl font-bold text-white mt-2"
+                      className="text-2xl sm:text-3xl font-bold text-white mt-2"
                       initial={{ scale: 0.5 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: index * 0.1 + 0.5 }}
@@ -340,9 +461,9 @@ export default function ManageSkills() {
                       repeat: Infinity,
                       ease: "easeInOut"
                     }}
-                    className={`p-3 rounded-xl bg-gradient-to-r ${stat.color} group-hover:scale-110 transition-transform duration-300 shadow-lg`}
+                    className={`p-2 sm:p-3 rounded-xl bg-gradient-to-r ${stat.color} group-hover:scale-110 transition-transform duration-300 shadow-lg`}
                   >
-                    <stat.icon className="w-6 h-6 text-white" />
+                    <stat.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </motion.div>
                 </div>
               </CardContent>
@@ -412,12 +533,18 @@ export default function ManageSkills() {
             className="text-center py-12"
           >
             <Sparkles className="w-16 h-16 text-white/40 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No skills found</h3>
-            <p className="text-white/60 mb-6">Start building your skills portfolio</p>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              {safeSkills.length === 0 ? 'No skills found' : 'No matching skills'}
+            </h3>
+            <p className="text-white/60 mb-6">
+              {safeSkills.length === 0 
+                ? 'Start building your skills portfolio' 
+                : 'Try a different search term'}
+            </p>
             <Link href="/admin/skills/new">
               <Button className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Your First Skill
+                Add New Skill
               </Button>
             </Link>
           </motion.div>
@@ -439,7 +566,7 @@ export default function ManageSkills() {
                         </div>
                         {category}
                         <Badge variant="outline" className="ml-2 bg-white/10 text-white/80 border-white/20">
-                          {categorySkills.length} skills
+                          {categorySkills.length} skill{categorySkills.length !== 1 ? 's' : ''}
                         </Badge>
                       </CardTitle>
                     </CardHeader>
@@ -460,7 +587,6 @@ export default function ManageSkills() {
                               }}
                               className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden"
                             >
-                              {/* Background glow on hover */}
                               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                               
                               <div className="relative z-10">
@@ -469,7 +595,7 @@ export default function ManageSkills() {
                                   <div className="flex items-center gap-3">
                                     <motion.div
                                       whileHover={{ scale: 1.1, rotate: 5 }}
-                                      className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg shadow-lg"
+                                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-white text-lg shadow-lg"
                                       style={{ backgroundColor: skill.color }}
                                     >
                                       {skill.icon || skill.name.charAt(0)}

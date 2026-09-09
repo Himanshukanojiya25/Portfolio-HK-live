@@ -1,42 +1,24 @@
-import express from 'express';
+import { Router } from 'express';
 import analyticsController from '../controllers/analytics.controller.js';
-import { protect, restrictTo } from '../middleware/auth.middleware.js';
+import authMiddleware from '../middleware/auth.middleware.js';
 
-const router = express.Router();
+const router = Router();
 
-/**
- * @route   POST /api/analytics/engagement
- * @desc    Update engagement data (time on page, scroll depth)
- * @access  Public
- */
-router.post('/engagement', analyticsController.updateEngagement);
+// Public routes (tracking events)
+router.post('/track', analyticsController.trackEvent);
 
-/**
- * @route   GET /api/analytics/dashboard
- * @desc    Get dashboard analytics (Admin only)
- * @access  Private (Admin)
- */
-router.get('/dashboard', protect, restrictTo('admin'), analyticsController.getDashboardAnalytics);
+// Protected routes (admin only)
+router.use(authMiddleware.protect, authMiddleware.restrictTo('admin'));
 
-/**
- * @route   GET /api/analytics/daily
- * @desc    Get daily analytics for charts (Admin only)
- * @access  Private (Admin)
- */
-router.get('/daily', protect, restrictTo('admin'), analyticsController.getDailyAnalytics);
-
-/**
- * @route   GET /api/analytics/stats
- * @desc    Get visitor statistics (Admin only)
- * @access  Private (Admin)
- */
-router.get('/stats', protect, restrictTo('admin'), analyticsController.getVisitorStats);
-
-/**
- * @route   DELETE /api/analytics/cleanup
- * @desc    Clean up old analytics data (Admin only)
- * @access  Private (Admin)
- */
-router.delete('/cleanup', protect, restrictTo('admin'), analyticsController.cleanupData);
+// Analytics endpoints
+router.get('/summary', analyticsController.getSummary);
+router.get('/time-series', analyticsController.getTimeSeries);
+router.get('/top-pages', analyticsController.getTopPages);
+router.get('/device-breakdown', analyticsController.getDeviceBreakdown);
+router.get('/locations', analyticsController.getLocationData);
+router.get('/real-time', analyticsController.getRealTimeVisitors);
+router.get('/export', analyticsController.exportData);
+router.get('/visitor/:visitorId', analyticsController.getVisitorDetails);
+router.get('/journey/:sessionId', analyticsController.getVisitorJourney);
 
 export default router;

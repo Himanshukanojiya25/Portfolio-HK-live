@@ -1,183 +1,78 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose from 'mongoose';
 
-export interface IAnalyticsEvent extends Document {
-  // Event Identification
-  eventType: 'page_view' | 'click' | 'scroll' | 'form_submit' | 'download' | 'share' | 'custom';
-  eventCategory: string;
-  eventAction: string;
-  eventLabel?: string;
-  eventValue?: number;
+const analyticsEventSchema = new mongoose.Schema({
+  // Event Basics
+  eventType: {
+    type: String,
+    required: true,
+    enum: ['page_view', 'click', 'scroll', 'form_submit', 'download', 'video_play', 'exit', 'session_start', 'session_end']
+  },
+  eventCategory: String,
+  eventAction: String,
+  eventLabel: String,
+  eventValue: Number,
   
-  // Session & User Context
-  sessionId: string;
-  visitorId: string;
-  userId?: mongoose.Types.ObjectId;
+  // Visitor Identification
+  sessionId: { type: String, required: true, index: true },
+  visitorId: { type: String, required: true, index: true },
   
-  // Page Context
-  pageUrl: string;
-  pageTitle: string;
-  previousPage?: string;
-  nextPage?: string;
+  // Page Information
+  pageUrl: { type: String, required: true },
+  pageTitle: String,
+  previousPage: String,
   
-  // User Context
-  userAgent: string;
-  ipAddress: string;
-  country?: string;
-  city?: string;
-  language?: string;
+  // Engagement Metrics
+  timeOnPage: Number, // milliseconds
+  scrollDepth: Number, // percentage (0-100)
+  clicksCount: Number,
   
-  // Device Information
-  screenResolution?: string;
-  viewportSize?: string;
-  colorDepth?: number;
+  // Technical Details
+  userAgent: String,
+  ipAddress: String,
+  browser: String,
+  browserVersion: String,
+  os: String,
+  osVersion: String,
+  deviceType: { type: String, enum: ['desktop', 'mobile', 'tablet', 'bot'] },
+  screenResolution: String,
+  language: String,
   
-  // Technical Data
-  connectionType?: string;
-  platform?: string;
-  plugins?: string[];
+  // Location Data
+  country: String,
+  countryCode: String,
+  region: String,
+  regionName: String,
+  city: String,
+  zip: String,
+  lat: Number,
+  lon: Number,
+  timezone: String,
+  isp: String,
+  org: String,
+  asn: String,
   
-  // Event Specific Data
-  elementId?: string;
-  elementClass?: string;
-  elementText?: string;
-  scrollDepth?: number;
-  formData?: any;
+  // Performance
+  pageLoadTime: Number,
+  domLoadTime: Number,
+  networkSpeed: String, // 4g, 3g, 2g, wifi
   
-  // Performance Data
-  pageLoadTime?: number;
-  domReadyTime?: number;
-  redirectTime?: number;
+  // Custom Data
+  customData: mongoose.Schema.Types.Mixed,
   
   // Timestamps
-  createdAt: Date;
-}
-
-const AnalyticsEventSchema: Schema = new Schema(
-  {
-    eventType: {
-      type: String,
-      enum: ['page_view', 'click', 'scroll', 'form_submit', 'download', 'share', 'custom'],
-      required: true
-    },
-    eventCategory: {
-      type: String,
-      required: true
-    },
-    eventAction: {
-      type: String,
-      required: true
-    },
-    eventLabel: {
-      type: String
-    },
-    eventValue: {
-      type: Number
-    },
-    sessionId: {
-      type: String,
-      required: true,
-      index: true
-    },
-    visitorId: {
-      type: String,
-      required: true,
-      index: true
-    },
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    pageUrl: {
-      type: String,
-      required: true
-    },
-    pageTitle: {
-      type: String,
-      required: true
-    },
-    previousPage: {
-      type: String
-    },
-    nextPage: {
-      type: String
-    },
-    userAgent: {
-      type: String,
-      required: true
-    },
-    ipAddress: {
-      type: String,
-      required: true
-    },
-    country: {
-      type: String
-    },
-    city: {
-      type: String
-    },
-    language: {
-      type: String
-    },
-    screenResolution: {
-      type: String
-    },
-    viewportSize: {
-      type: String
-    },
-    colorDepth: {
-      type: Number
-    },
-    connectionType: {
-      type: String
-    },
-    platform: {
-      type: String
-    },
-    plugins: [{
-      type: String
-    }],
-    elementId: {
-      type: String
-    },
-    elementClass: {
-      type: String
-    },
-    elementText: {
-      type: String
-    },
-    scrollDepth: {
-      type: Number,
-      min: 0,
-      max: 100
-    },
-    formData: {
-      type: Schema.Types.Mixed
-    },
-    pageLoadTime: {
-      type: Number
-    },
-    domReadyTime: {
-      type: Number
-    },
-    redirectTime: {
-      type: Number
-    }
-  },
-  {
-    timestamps: true
-  }
-);
-
-// Indexes for efficient querying
-AnalyticsEventSchema.index({ sessionId: 1, createdAt: -1 });
-AnalyticsEventSchema.index({ visitorId: 1, createdAt: -1 });
-AnalyticsEventSchema.index({ eventType: 1, createdAt: -1 });
-AnalyticsEventSchema.index({ eventCategory: 1, eventAction: 1 });
-AnalyticsEventSchema.index({ createdAt: -1 });
-
-// TTL index to automatically remove old events (keep 6 months)
-AnalyticsEventSchema.index({ createdAt: 1 }, { 
-  expireAfterSeconds: 6 * 30 * 24 * 60 * 60 // 6 months
+  timestamp: { type: Date, default: Date.now, index: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
 });
 
-export default mongoose.model<IAnalyticsEvent>('AnalyticsEvent', AnalyticsEventSchema);
+// Indexes for faster queries
+analyticsEventSchema.index({ sessionId: 1, timestamp: -1 });
+analyticsEventSchema.index({ visitorId: 1, timestamp: -1 });
+analyticsEventSchema.index({ eventType: 1, timestamp: -1 });
+analyticsEventSchema.index({ country: 1, timestamp: -1 });
+analyticsEventSchema.index({ deviceType: 1, timestamp: -1 });
+
+export const AnalyticsEvent = mongoose.model('AnalyticsEvent', analyticsEventSchema);
+export default AnalyticsEvent;

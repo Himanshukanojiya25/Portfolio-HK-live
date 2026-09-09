@@ -2,42 +2,41 @@ import { motion } from "framer-motion";
 import { ExternalLink, Github, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
+import { projectApi } from "@/services/publicApi";
 
-const projects = [
-  {
-    title: "CRM System",
-    category: "Full Stack Web App",
-    description: "A comprehensive Customer Relationship Management system built with Node.js and Express. Features user management, customer tracking, and sales pipeline management.",
-    tech: ["Node.js", "Express", "EJS", "MongoDB"],
-    links: { 
-      demo: "#", 
-      github: "https://github.com/Himanshukanojiya25/CRM-Project" 
-    },
-    gradient: "from-blue-500 to-purple-600"
-  },
-  {
-    title: "PlaySpot - Turf Booking",
-    category: "Frontend Application",
-    description: "A modern sports turf booking platform with intuitive UI. Built with React and TypeScript for seamless user experience in booking sports facilities.",
-    tech: ["React", "TypeScript", "Tailwind CSS"],
-    links: { 
-      demo: "#", 
-      github: "https://github.com/Himanshukanojiya25/PlaySpot" 
-    },
-    gradient: "from-green-500 to-cyan-600"
-  },
-  {
-    title: "Interactive Wedding Invitation",
-    category: "Frontend Design",
-    description: "A beautiful and engaging wedding invitation website with smooth animations and responsive design. Perfect for modern digital wedding invitations.",
-    tech: ["React", "TypeScript", "CSS Animations"],
-    links: { 
-      demo: "https://praful-wedding.netlify.app/", 
-      github: "https://github.com/Himanshukanojiya25/Wedding.Invitation" 
-    },
-    gradient: "from-pink-500 to-rose-600"
-  }
-];
+// Types
+interface Project {
+  _id: string;
+  title: string;
+  category: string;
+  description: string;
+  shortDescription: string;
+  techStack: string[];
+  featuredImage: string;
+  liveUrl?: string;
+  repositoryUrl?: string;
+  isPublic: boolean;
+  isFeatured: boolean;
+  status: string;
+  viewCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UIProject {
+  title: string;
+  category: string;
+  description: string;
+  tech: string[];
+  links: {
+    demo: string;
+    github: string;
+  };
+  gradient: string;
+  isPublic: boolean;
+  isFeatured: boolean;
+  status: string;
+}
 
 // Magnetic card component - Mobile friendly
 function MagneticCard({ children, index }: { children: React.ReactNode; index: number }) {
@@ -87,14 +86,14 @@ function MagneticCard({ children, index }: { children: React.ReactNode; index: n
 }
 
 // 3D Flip Card Component - Mobile optimized
-function FlipCard({ project, index }: { project: any; index: number }) {
+function FlipCard({ project, index }: { project: Project; index: number }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024); // Tablet & mobile
+      setIsMobile(window.innerWidth < 1024);
     };
     
     checkMobile();
@@ -107,6 +106,33 @@ function FlipCard({ project, index }: { project: any; index: number }) {
       setIsAnimating(true);
       setIsFlipped(!isFlipped);
     }
+  };
+
+  // Color gradient based on category
+  const getGradient = (category: string): string => {
+    switch(category?.toLowerCase()) {
+      case 'web': return 'from-blue-500 to-purple-600';
+      case 'mobile': return 'from-green-500 to-cyan-600';
+      case 'ai-ml': return 'from-purple-500 to-pink-600';
+      case 'iot': return 'from-yellow-500 to-orange-600';
+      default: return 'from-blue-500 to-cyan-600';
+    }
+  };
+
+  // Map API project to UI format
+  const uiProject: UIProject = {
+    title: project.title,
+    category: project.category?.charAt(0).toUpperCase() + project.category?.slice(1) || 'Project',
+    description: project.shortDescription || project.description?.substring(0, 150) + '...',
+    tech: project.techStack || [],
+    links: { 
+      demo: project.liveUrl || '#', 
+      github: project.repositoryUrl || '#' 
+    },
+    gradient: getGradient(project.category),
+    isPublic: project.isPublic,
+    isFeatured: project.isFeatured,
+    status: project.status || 'completed'
   };
 
   return (
@@ -131,8 +157,28 @@ function FlipCard({ project, index }: { project: any; index: number }) {
               className="group relative bg-gradient-to-br from-gray-900 to-black rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 h-full flex flex-col justify-between border border-white/10 hover:border-white/20 transition-all duration-500 overflow-hidden"
             >
               {/* Animated background gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${project.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
+              <div className={`absolute inset-0 bg-gradient-to-br ${uiProject.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
               
+              {/* Visibility Badge */}
+              {!project.isPublic && (
+                <div className="absolute top-3 left-3 z-10">
+                  <div className="flex items-center gap-1 bg-gradient-to-r from-gray-700 to-gray-900 text-white px-2 py-1 rounded-full text-xs border border-gray-600">
+                    <span>🔒</span>
+                    Private
+                  </div>
+                </div>
+              )}
+
+              {/* Featured badge */}
+              {project.isFeatured && (
+                <div className="absolute top-3 right-3 z-10">
+                  <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 rounded-full text-xs">
+                    <span>⭐</span>
+                    Featured
+                  </div>
+                </div>
+              )}
+
               {/* Floating elements */}
               <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-4 h-4 sm:w-6 sm:h-6 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-500" />
               <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 w-3 h-3 sm:w-4 sm:h-4 bg-white/5 rounded-full group-hover:scale-125 transition-transform duration-500 delay-100" />
@@ -141,7 +187,7 @@ function FlipCard({ project, index }: { project: any; index: number }) {
               <div className="relative z-10 flex-1">
                 <div className="flex justify-between items-start mb-4 sm:mb-6">
                   <span className="text-xs font-semibold text-primary px-2 sm:px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-                    {project.category}
+                    {uiProject.category}
                   </span>
                   <motion.div
                     whileHover={{ scale: 1.1, rotate: 90 }}
@@ -152,18 +198,18 @@ function FlipCard({ project, index }: { project: any; index: number }) {
                 </div>
 
                 <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-3 sm:mb-4 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-primary group-hover:to-secondary transition-all duration-300">
-                  {project.title}
+                  {uiProject.title}
                 </h3>
 
                 <p className="text-white/70 text-sm leading-relaxed mb-4 sm:mb-6 line-clamp-3">
-                  {project.description}
+                  {uiProject.description}
                 </p>
               </div>
 
-              {/* Tech stack with hover effects */}
+              {/* Tech stack */}
               <div className="relative z-10">
                 <div className="flex flex-wrap gap-1 sm:gap-2 mb-3 sm:mb-4">
-                  {project.tech.map((tech: string, techIndex: number) => (
+                  {uiProject.tech.slice(0, 3).map((tech: string, techIndex: number) => (
                     <motion.span
                       key={techIndex}
                       initial={{ opacity: 0, scale: 0 }}
@@ -176,6 +222,11 @@ function FlipCard({ project, index }: { project: any; index: number }) {
                       #{tech}
                     </motion.span>
                   ))}
+                  {uiProject.tech.length > 3 && (
+                    <span className="text-xs text-white/40 px-2 py-1">
+                      +{uiProject.tech.length - 3}
+                    </span>
+                  )}
                 </div>
 
                 {/* Flip hint */}
@@ -205,26 +256,42 @@ function FlipCard({ project, index }: { project: any; index: number }) {
             <div className="flex-1">
               <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-3 sm:mb-4">Project Details</h3>
               <p className="text-white/70 text-sm leading-relaxed mb-4 sm:mb-6">
-                {project.description}
+                {uiProject.description}
               </p>
               
               <div className="space-y-2 sm:space-y-3">
                 <div>
                   <p className="text-primary text-sm font-semibold">Technologies</p>
-                  <p className="text-white/60 text-sm">{project.tech.join(", ")}</p>
+                  <p className="text-white/60 text-sm">{uiProject.tech.slice(0, 5).join(", ")}</p>
                 </div>
                 <div>
-                  <p className="text-primary text-sm font-semibold">Category</p>
-                  <p className="text-white/60 text-sm">{project.category}</p>
+                  <p className="text-primary text-sm font-semibold">Status</p>
+                  <p className="text-white/60 text-sm capitalize">{project.status || 'Completed'}</p>
+                </div>
+                <div>
+                  <p className="text-primary text-sm font-semibold">Visibility</p>
+                  <p className="text-white/60 text-sm">
+                    {project.isPublic ? (
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        Public
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                        Private (Admin Only)
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Action buttons */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              {project.links.demo !== "#" && (
+              {uiProject.links.demo !== '#' && (
                 <motion.a
-                  href={project.links.demo}
+                  href={uiProject.links.demo}
                   target="_blank"
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.05 }}
@@ -234,29 +301,33 @@ function FlipCard({ project, index }: { project: any; index: number }) {
                   Live Demo
                 </motion.a>
               )}
-              <motion.a
-                href={project.links.github}
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex-1 bg-white/5 text-white text-sm font-semibold py-2 sm:py-3 px-4 rounded-xl text-center border border-white/10 hover:border-primary/50 hover:bg-primary/10 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                <Github size={14} className="sm:w-4 sm:h-4" />
-                Code
-              </motion.a>
+              {uiProject.links.github !== '#' && (
+                <motion.a
+                  href={uiProject.links.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex-1 bg-white/5 text-white text-sm font-semibold py-2 sm:py-3 px-4 rounded-xl text-center border border-white/10 hover:border-primary/50 hover:bg-primary/10 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <Github size={14} className="sm:w-4 sm:h-4" />
+                  Code
+                </motion.a>
+              )}
             </div>
           </div>
         </div>
       </motion.div>
-
-      
     </div>
   );
 }
 
 export default function Projects() {
   const [isMobile, setIsMobile] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState<any>({});
 
   useEffect(() => {
     const checkMobile = () => {
@@ -265,8 +336,110 @@ export default function Projects() {
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    
+    // Fetch projects from API
+    fetchProjects();
+    
+    // Check for updates every 30 seconds
+    const updateInterval = setInterval(() => {
+      console.log('🔄 Checking for project updates...');
+      fetchProjects();
+    }, 30000);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      clearInterval(updateInterval);
+    };
   }, []);
+
+const fetchProjects = async () => {
+  try {
+    setLoading(true);
+    console.log('🔍 [FRONTEND] Fetching projects...');
+    
+    // TRY BOTH METHODS
+    const featuredResponse = await projectApi.getFeatured();
+    console.log('⭐ Featured API Response:', featuredResponse);
+    
+    const allResponse = await projectApi.getAll();
+    console.log('📦 All Projects API Response:', allResponse);
+    
+    // EXTRACT PROJECTS FROM RESPONSE
+    let projectsData: Project[] = [];
+    
+    // Try different response structures
+    if (featuredResponse.data?.projects && featuredResponse.data.projects.length > 0) {
+      projectsData = featuredResponse.data.projects;
+      console.log('✅ Using featuredResponse.data.projects');
+    } 
+    else if (allResponse.data?.projects && allResponse.data.projects.length > 0) {
+      projectsData = allResponse.data.projects;
+      console.log('✅ Using allResponse.data.projects');
+    }
+    else if (featuredResponse.projects && featuredResponse.projects.length > 0) {
+      projectsData = featuredResponse.projects;
+      console.log('✅ Using featuredResponse.projects');
+    }
+    else if (allResponse.projects && allResponse.projects.length > 0) {
+      projectsData = allResponse.projects;
+      console.log('✅ Using allResponse.projects');
+    }
+    else if (Array.isArray(featuredResponse)) {
+      projectsData = featuredResponse;
+      console.log('✅ Using featuredResponse (array)');
+    }
+    else if (Array.isArray(allResponse)) {
+      projectsData = allResponse;
+      console.log('✅ Using allResponse (array)');
+    }
+    
+    console.log(`📊 Final projects: ${projectsData.length} items`);
+    console.log('📋 Projects:', projectsData.map(p => ({
+      id: p._id,
+      title: p.title,
+      isPublic: p.isPublic,
+      isFeatured: p.isFeatured
+    })));
+    
+    // Filter only public projects
+    const publicProjects = projectsData.filter((project: Project) => project.isPublic === true);
+    console.log(`🔐 Public projects: ${publicProjects.length}/${projectsData.length}`);
+    
+    setProjects(publicProjects);
+    
+  } catch (err: any) {
+    console.error('❌ Error fetching projects:', err);
+    setError('Failed to load projects');
+    
+    // Fallback
+    setProjects([
+      {
+        _id: '1',
+        title: "CRM System",
+        category: "web",
+        description: "A comprehensive Customer Relationship Management system built with Node.js and Express.",
+        shortDescription: "A comprehensive Customer Relationship Management system built with Node.js and Express.",
+        techStack: ["Node.js", "Express", "EJS", "MongoDB"],
+        featuredImage: "https://via.placeholder.com/600x400/3b82f6/ffffff?text=CRM+Project",
+        liveUrl: "#",
+        repositoryUrl: "https://github.com/Himanshukanojiya25/CRM-Project",
+        isPublic: true,
+        isFeatured: true,
+        status: "completed",
+        viewCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleRefresh = () => {
+    console.log('🔄 Manually refreshing projects...');
+    fetchProjects();
+  };
 
   return (
     <section id="projects" className="py-12 sm:py-20 md:py-28 bg-black relative overflow-hidden">
@@ -278,7 +451,27 @@ export default function Projects() {
       </div>
 
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
-        {/* Header with animation */}
+        {/* Debug Info (Development Only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <details className="bg-gray-900/90 backdrop-blur-sm rounded-lg p-3 text-xs border border-gray-700 max-w-xs">
+              <summary className="cursor-pointer font-semibold text-primary">🔧 Debug Info</summary>
+              <div className="mt-2 space-y-1">
+                <p>Last fetched: {debugInfo.lastFetched ? new Date(debugInfo.lastFetched).toLocaleTimeString() : 'Never'}</p>
+                <p>Public projects: {debugInfo.publicProjects || 0}</p>
+                <p>Total from API: {debugInfo.totalProjects || 0}</p>
+                <button 
+                  onClick={handleRefresh}
+                  className="mt-2 text-xs bg-primary/20 hover:bg-primary/30 px-2 py-1 rounded"
+                >
+                  Refresh
+                </button>
+              </div>
+            </details>
+          </div>
+        )}
+
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -313,22 +506,81 @@ export default function Projects() {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="text-sm sm:text-lg text-white/60 max-w-2xl mx-auto px-4"
           >
-            Explore my latest work where design meets functionality. Each project tells a unique story of innovation.
+            {projects.length} featured projects from my portfolio. 
+            {process.env.NODE_ENV === 'development' && (
+              <span className="block text-xs text-primary/70 mt-1">
+                Only public projects (isPublic: true) are shown here.
+              </span>
+            )}
           </motion.p>
         </motion.div>
 
-        {/* Projects Grid - Mobile first responsive design */}
-        <div className={`
-          grid gap-4 sm:gap-6 md:gap-8
-          ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}
-          max-w-7xl mx-auto
-        `}>
-          {projects.map((project, index) => (
-            <div key={index} className="w-full h-full">
-              <FlipCard project={project} index={index} />
+        {/* Loading/Error States */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <p className="mt-4 text-muted-foreground">Loading projects from backend...</p>
+            <p className="text-xs text-gray-500 mt-2">Fetching from: {process.env.VITE_API_URL || 'http://localhost:5000'}</p>
+          </div>
+        )}
+
+        {error && !loading && (
+          <div className="text-center py-12">
+            <div className="bg-red-900/20 border border-red-700 rounded-lg p-6 max-w-md mx-auto">
+              <p className="text-red-400 font-semibold">⚠️ {error}</p>
+              <p className="text-white/60 text-sm mt-2">
+                Make sure backend server is running on port 5000
+              </p>
+              <button 
+                onClick={handleRefresh}
+                className="mt-4 bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg"
+              >
+                Try Again
+              </button>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
+
+        {/* Projects Grid */}
+        {!loading && !error && (
+          <div className={`
+            grid gap-4 sm:gap-6 md:gap-8
+            ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}
+            max-w-7xl mx-auto
+          `}>
+            {projects.map((project, index) => (
+              <div key={project._id} className="w-full h-full">
+                <FlipCard project={project} index={index} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && projects.length === 0 && (
+          <div className="text-center py-12">
+            <div className="bg-gray-900/50 border border-gray-700 rounded-xl p-8 max-w-md mx-auto">
+              <p className="text-white/60 mb-2">No public projects found</p>
+              <p className="text-white/40 text-sm mb-4">
+                Add projects from admin panel and make sure to set "isPublic: true"
+              </p>
+              <div className="flex gap-4 justify-center">
+                <button 
+                  onClick={handleRefresh}
+                  className="text-primary hover:text-primary/80 text-sm"
+                >
+                  ↻ Refresh
+                </button>
+                <a 
+                  href="/admin" 
+                  className="text-secondary hover:text-secondary/80 text-sm"
+                >
+                  Go to Admin Panel →
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CTA Section */}
         <motion.div
@@ -353,24 +605,13 @@ export default function Projects() {
             whileTap={{ scale: 0.95 }}
           >
             <Button
-              onClick={() => window.open('https://github.com/Himanshukanojiya25', '_blank')}
+              onClick={() => window.location.href = '/projects'}
               className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white rounded-full px-8 sm:px-12 py-4 sm:py-6 text-base sm:text-lg font-semibold shadow-2xl shadow-primary/25"
             >
-              Explore GitHub
+              View All Projects
               <ArrowUpRight className="ml-2 sm:ml-3 w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </motion.div>
-
-          {/* Easter egg hint */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 1 }}
-            className="text-xs sm:text-sm text-white/30 mt-6 sm:mt-8 font-mono"
-          >
-            💡 {isMobile ? "Tap cards to flip" : "Hover over cards to flip"}
-          </motion.p>
         </motion.div>
       </div>
     </section>

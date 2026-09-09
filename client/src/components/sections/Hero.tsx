@@ -6,14 +6,34 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
 import * as THREE from "three";
 
-// Custom cursor component
+// Custom cursor component - FIXED FOR DESKTOP, DISABLED FOR MOBILE
 function CustomCursor() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isPointer, setIsPointer] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const cursorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Check if screen is desktop (768px or larger)
+    const checkScreenSize = () => {
+      const desktop = window.innerWidth >= 768;
+      setIsDesktop(desktop);
+    };
+    
+    // Initial check
+    checkScreenSize();
+    
+    // Listen for resize
+    window.addEventListener('resize', checkScreenSize);
+    
     const updateCursor = (e: MouseEvent) => {
-      setPosition({ x: e.clientX, y: e.clientY });
+      if (!isDesktop) return;
+      
+      // Direct DOM manipulation for precise positioning
+      if (cursorRef.current) {
+        cursorRef.current.style.left = `${e.clientX}px`;
+        cursorRef.current.style.top = `${e.clientY}px`;
+      }
       
       const target = e.target as HTMLElement;
       setIsPointer(
@@ -24,19 +44,25 @@ function CustomCursor() {
     };
 
     document.addEventListener('mousemove', updateCursor);
-    return () => document.removeEventListener('mousemove', updateCursor);
-  }, []);
+    return () => {
+      document.removeEventListener('mousemove', updateCursor);
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, [isDesktop]);
+
+  // Mobile pe cursor display nahi hoga
+  if (!isDesktop) {
+    return null;
+  }
 
   return (
     <>
-      <motion.div
-        className="fixed w-6 h-6 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full mix-blend-difference pointer-events-none z-50"
-        animate={{
-          x: position.x - 12,
-          y: position.y - 12,
-          scale: isPointer ? 1.5 : 1,
+      <div
+        ref={cursorRef}
+        className="fixed w-6 h-6 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full mix-blend-difference pointer-events-none z-50 transform -translate-x-1/2 -translate-y-1/2 transition-transform duration-75"
+        style={{
+          scale: isPointer ? '1.5' : '1',
         }}
-        transition={{ type: "spring", damping: 20, stiffness: 300, mass: 0.5 }}
       />
     </>
   );

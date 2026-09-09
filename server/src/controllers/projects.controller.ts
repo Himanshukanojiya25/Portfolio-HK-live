@@ -3,7 +3,7 @@ import Project from '../models/Project.model.js';
 import { AuthRequest } from '../middleware/auth.middleware.js';
 
 export const projectsController = {
-  // Get all projects (with filtering)
+  // Get all projects (with filtering) - ADMIN & PUBLIC BOTH
   getProjects: async (req: Request, res: Response) => {
     try {
       const { 
@@ -13,10 +13,22 @@ export const projectsController = {
         status,
         featured,
         tech,
-        public: isPublic = 'true'
+        public: isPublicQuery = 'true',  // Default true for public
+        admin = 'false'  // New param to check if admin
       } = req.query;
 
-      const filter: any = { isPublic: isPublic === 'true' };
+      // ✅ FIX: Check if request is from admin or public
+      const isAdminRequest = admin === 'true' || req.path.includes('/admin');
+      
+      let filter: any = {};
+      
+      // ✅ FIX: Only add isPublic filter for PUBLIC requests
+      if (!isAdminRequest) {
+        filter.isPublic = true;
+      } else if (isPublicQuery === 'true') {
+        // Admin can filter by isPublic if explicitly requested
+        filter.isPublic = true;
+      }
       
       if (category) {
         filter.category = category;
@@ -33,6 +45,13 @@ export const projectsController = {
       if (tech) {
         filter.techStack = { $in: [tech] };
       }
+
+      console.log('🔍 Projects Filter:', {
+        filter,
+        isAdminRequest,
+        path: req.path,
+        query: req.query
+      });
 
       const projects = await Project.find(filter)
         .populate('technologies')
@@ -63,24 +82,37 @@ export const projectsController = {
     }
   },
 
-  // Get project by ID
+  // Get project by ID - BOTH ADMIN & PUBLIC
   getProjectById: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      const { admin = 'false' } = req.query;
 
-      const project = await Project.findById(id)
+      // ✅ FIX: Check if admin request
+      const isAdminRequest = admin === 'true' || req.path.includes('/admin');
+      
+      let query: any = { _id: id };
+      
+      // ✅ FIX: Only add isPublic filter for PUBLIC requests
+      if (!isAdminRequest) {
+        query.isPublic = true;
+      }
+
+      const project = await Project.findOne(query)
         .populate('technologies');
 
       if (!project) {
         return res.status(404).json({
           success: false,
-          message: 'Project not found'
+          message: isAdminRequest ? 'Project not found' : 'Project not found or not public'
         });
       }
 
-      // Increment view count
-      project.viewCount += 1;
-      await project.save();
+      // Increment view count for public requests
+      if (!isAdminRequest) {
+        project.viewCount += 1;
+        await project.save();
+      }
 
       res.status(200).json({
         success: true,
@@ -100,9 +132,20 @@ export const projectsController = {
   createProject: async (req: AuthRequest, res: Response) => {
     try {
       const projectData = req.body;
+      
+      // ✅ FIX: Ensure isPublic field is included
+      if (projectData.isPublic === undefined) {
+        projectData.isPublic = true; // Default to public
+      }
 
       const project = new Project(projectData);
       await project.save();
+
+      console.log('✅ Project created:', {
+        id: project._id,
+        title: project.title,
+        isPublic: project.isPublic
+      });
 
       res.status(201).json({
         success: true,
@@ -125,6 +168,12 @@ export const projectsController = {
       const { id } = req.params;
       const updates = req.body;
 
+      console.log('🔄 Project Update:', {
+        id,
+        updates,
+        isPublic: updates.isPublic
+      });
+
       const project = await Project.findByIdAndUpdate(
         id,
         { $set: updates },
@@ -137,6 +186,13 @@ export const projectsController = {
           message: 'Project not found'
         });
       }
+
+      console.log('✅ Project updated:', {
+        id: project._id,
+        title: project.title,
+        isPublic: project.isPublic,
+        isFeatured: project.isFeatured
+      });
 
       res.status(200).json({
         success: true,
@@ -247,7 +303,7 @@ export const projectsController = {
     }
   },
 
-  // Get featured projects
+  // Get featured projects - PUBLIC ONLY
   getFeaturedProjects: async (req: Request, res: Response) => {
     try {
       const projects = await Project.find({
@@ -272,7 +328,7 @@ export const projectsController = {
     }
   },
 
-  // Get projects by technology
+  // Get projects by technology - PUBLIC ONLY
   getProjectsByTech: async (req: Request, res: Response) => {
     try {
       const { tech } = req.params;

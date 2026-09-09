@@ -1,8 +1,5 @@
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Sphere } from "@react-three/drei";
-import { Suspense, useState, useEffect, useRef } from "react";
-import * as THREE from "three";
+import { useRef } from "react";
 
 const skills = [
   { name: "JavaScript", level: 85, color: "#f7df1e" },
@@ -111,95 +108,7 @@ function DraggableSkillBar({ skill, index }: { skill: any; index: number }) {
   );
 }
 
-// Interactive 3D Skill Sphere
-function SkillSphere({ position, color, index }: { position: [number, number, number]; color: string; index: number }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [hovered, setHover] = useState(false);
-  const [clicked, setClicked] = useState(false);
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime * 0.2;
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.3;
-      
-      // Floating animation
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.5 + index) * 0.3;
-    }
-  });
-
-  return (
-    <Float speed={2} rotationIntensity={1} floatIntensity={2}>
-      <mesh
-        ref={meshRef}
-        position={position}
-        scale={clicked ? 1.5 : hovered ? 1.2 : 1}
-        onClick={() => setClicked(!clicked)}
-        onPointerOver={() => setHover(true)}
-        onPointerOut={() => setHover(false)}
-      >
-        <Sphere args={[0.8, 32, 32]}>
-          <meshStandardMaterial
-            color={color}
-            roughness={0.1}
-            metalness={0.9}
-            emissive={color}
-            emissiveIntensity={hovered ? 2 : 0.5}
-            transparent
-            opacity={0.9}
-          />
-        </Sphere>
-      </mesh>
-    </Float>
-  );
-}
-
-function SkillsScene() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  return (
-    <>
-      <ambientLight intensity={0.6} />
-      <pointLight position={[5, 5, 5]} intensity={1} color="#ff6b6b" />
-      <pointLight position={[-5, -5, 5]} intensity={0.8} color="#00d9ff" />
-      <pointLight position={[0, 5, -5]} intensity={0.5} color="#ff00c8" />
-      
-      {skills.map((skill, i) => {
-        if (isMobile && i >= 4) return null;
-        
-        const angle = (i / skills.length) * Math.PI * 2;
-        const radius = isMobile ? 2 : 3;
-        
-        return (
-          <SkillSphere
-            key={i}
-            position={[
-              Math.cos(angle) * radius,
-              Math.sin(angle * 2) * (isMobile ? 0.8 : 1.2),
-              Math.sin(angle) * (isMobile ? 0.6 : 1)
-            ]}
-            color={skill.color}
-            index={i}
-          />
-        );
-      })}
-    </>
-  );
-}
-
 export default function Skills() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   return (
     <section id="skills" className="py-20 sm:py-28 md:py-36 bg-black relative overflow-hidden">
       {/* Animated background */}
@@ -248,43 +157,12 @@ export default function Skills() {
           </motion.p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 sm:gap-16 md:gap-20 items-center">
-          {/* Draggable Skill Bars */}
+        {/* Skill Bars - Now full width since 3D sphere removed */}
+        <div className="max-w-4xl mx-auto">
           <div className="space-y-6 sm:space-y-8">
             {skills.map((skill, index) => (
               <DraggableSkillBar key={skill.name} skill={skill} index={index} />
             ))}
-          </div>
-
-          {/* 3D Interactive Sphere */}
-          <div className="h-[400px] sm:h-[500px] md:h-[600px] rounded-3xl overflow-hidden relative bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-sm border border-white/10">
-            {mounted && (
-              <Canvas
-                dpr={[1, 2]}
-                gl={{ 
-                  antialias: true,
-                  powerPreference: "high-performance"
-                }}
-                camera={{ position: [0, 0, 8], fov: 50 }}
-                className="rounded-3xl"
-              >
-                <Suspense fallback={null}>
-                  <SkillsScene />
-                </Suspense>
-              </Canvas>
-            )}
-            
-            {/* Overlay instructions */}
-            <div className="absolute bottom-6 left-6 right-6 text-center">
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 2 }}
-                className="text-white/60 text-sm backdrop-blur-sm bg-black/20 rounded-full py-2 px-4 border border-white/10"
-              >
-                🎮 Click spheres to explode • Hover to glow
-              </motion.p>
-            </div>
           </div>
         </div>
 
@@ -294,7 +172,7 @@ export default function Skills() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mt-16 sm:mt-24"
+          className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mt-16 sm:mt-24 max-w-4xl mx-auto"
         >
           {[
             { number: "8+", label: "Technologies" },

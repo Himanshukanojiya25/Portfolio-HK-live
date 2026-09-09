@@ -1,18 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { 
   LayoutDashboard, 
   FolderOpen, 
   Code2,
-  MessageSquare, 
-  BarChart3, 
-  FileText,
+  BarChart3,
   Star,
   LogOut,
   Menu,
   X,
-  Settings,
-  User,
   Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,21 +18,71 @@ import { cn } from '@/lib/utils';
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [location, setLocation] = useLocation();
-  const { logout, user } = useAuth();
+  const { logout, user, isLoading } = useAuth();
 
+  // ✅ COMPLETE AUTHENTICATION CHECK + REDIRECT
+  useEffect(() => {
+    console.log('🛡️ AdminLayout Auth Check:', {
+      isLoading,
+      hasUser: !!user,
+      location
+    });
+
+    // Redirect /admin to /admin/dashboard
+    if (location === '/admin') {
+      console.log('↪️ Redirecting /admin to /admin/dashboard');
+      setLocation('/admin/dashboard');
+      return;
+    }
+
+    // If loading is done and no user, redirect to login
+    // But only for admin routes (not login page itself)
+    if (!isLoading && !user && location.startsWith('/admin') && location !== '/admin/login') {
+      console.log('🚫 No authenticated user, redirecting to login');
+      setLocation('/admin/login');
+    }
+  }, [user, isLoading, location, setLocation]);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg font-medium">Checking authentication...</p>
+          <p className="text-slate-400 text-sm mt-2">Please wait</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ DON'T RENDER LAYOUT FOR NON-AUTHENTICATED USERS
+  // Important: This runs after isLoading is false
+  if (!user) {
+    console.log('👤 No user found, not rendering layout');
+    // Return null or a loading indicator
+    // The useEffect above will handle redirect to login
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Navigation items - WITHOUT Messages
   const navigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Projects', href: '/admin/projects', icon: FolderOpen },
     { name: 'Skills', href: '/admin/skills', icon: Code2 },
-    { name: 'Messages', href: '/admin/messages', icon: MessageSquare },
     { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { name: 'Blog', href: '/admin/blog', icon: FileText },
     { name: 'Testimonials', href: '/admin/testimonials', icon: Star },
-    { name: 'Profile', href: '/admin/profile', icon: User },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   const handleLogout = () => {
+    console.log('👋 User logging out');
     logout();
     setLocation('/admin/login');
   };
@@ -57,7 +103,7 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
                 <span className="text-white font-bold text-lg">A</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Admin Panel</h1>
+                <h1 className="text-xl font-bold text-white">Admin </h1>
                 <p className="text-slate-400 text-sm">Portfolio Manager</p>
               </div>
             </div>

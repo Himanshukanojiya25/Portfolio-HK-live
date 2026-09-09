@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import Visitor from '../models/Visitor.model.js';
 import { getClientIP, getUserAgent, parseUserAgent } from '../utils/analytics.utils.js';
-import advancedAnalyticsService from '../services/advancedAnalytics.service.js';
 
 export interface AnalyticsRequest extends Request {
   visitorData?: {
@@ -119,33 +118,6 @@ export const analyticsMiddleware = {
         startTime: Date.now()
       };
 
-      // ✅ ADDED: Track page view with advanced analytics
-      try {
-        const eventData: any = {
-          eventType: 'page_view',
-          eventCategory: 'Page View',
-          eventAction: 'View',
-          eventLabel: req.url,
-          sessionId: sessionId,
-          visitorId: visitorId,
-          pageUrl: req.url,
-          pageTitle: '', // Can be set from frontend
-          userAgent: userAgent,
-          ipAddress: ipAddress
-        };
-
-        // ✅ FIXED: Add previousPage only if referrer exists
-        const referrer = req.get('Referer');
-        if (referrer) {
-          eventData.previousPage = referrer;
-        }
-
-        await advancedAnalyticsService.trackEvent(eventData);
-      } catch (trackingError) {
-        console.error('Failed to track page view:', trackingError);
-        // Don't block request if advanced tracking fails
-      }
-
       next();
     } catch (error) {
       console.error('Analytics middleware error:', error);
@@ -176,60 +148,6 @@ export const analyticsMiddleware = {
                   (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100
                 );
                 maxScroll = Math.max(maxScroll, scrollPercent);
-                
-                // ✅ ADDED: Track scroll events for advanced analytics
-                if (scrollPercent % 25 === 0) { // Track every 25% scroll
-                  fetch('/api/analytics/advanced/track', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      eventType: 'scroll',
-                      eventCategory: 'Engagement',
-                      eventAction: 'Scroll',
-                      eventLabel: 'Scroll Depth',
-                      eventValue: scrollPercent,
-                      sessionId: '${req.visitorData?.sessionId}',
-                      visitorId: '${req.visitorData?.visitorId}',
-                      pageUrl: '${req.url}',
-                      pageTitle: document.title,
-                      scrollDepth: scrollPercent,
-                      elementId: 'page-body'
-                    })
-                  }).catch(console.error);
-                }
-              });
-
-              // Track clicks for advanced analytics
-              document.addEventListener('click', function(e) {
-                const target = e.target;
-                const elementId = target.id || '';
-                const elementClass = target.className || '';
-                const elementText = target.textContent?.substring(0, 50) || '';
-                
-                // Track important clicks (buttons, links, etc.)
-                if (target.tagName === 'BUTTON' || target.tagName === 'A' || target.closest('button') || target.closest('a')) {
-                  fetch('/api/analytics/advanced/track', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      eventType: 'click',
-                      eventCategory: 'Engagement',
-                      eventAction: 'Click',
-                      eventLabel: elementText || elementId || elementClass,
-                      sessionId: '${req.visitorData?.sessionId}',
-                      visitorId: '${req.visitorData?.visitorId}',
-                      pageUrl: '${req.url}',
-                      pageTitle: document.title,
-                      elementId: elementId,
-                      elementClass: elementClass,
-                      elementText: elementText
-                    })
-                  }).catch(console.error);
-                }
               });
 
               // Track when user leaves the page
@@ -263,26 +181,6 @@ export const analyticsMiddleware = {
                     url: '${req.url}'
                   })
                 }).catch(console.error);
-                
-                // ✅ ADDED: Also send to advanced analytics
-                fetch('/api/analytics/advanced/track', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    eventType: 'page_view',
-                    eventCategory: 'Engagement',
-                    eventAction: 'Page Exit',
-                    eventLabel: 'Time on Page',
-                    eventValue: timeOnPage,
-                    sessionId: '${req.visitorData?.sessionId}',
-                    visitorId: '${req.visitorData?.visitorId}',
-                    pageUrl: '${req.url}',
-                    pageTitle: document.title,
-                    scrollDepth: scrollDepth
-                  })
-                }).catch(console.error);
               }
             })();
           </script>
@@ -302,46 +200,10 @@ export const analyticsMiddleware = {
     next();
   },
 
-  // ✅ ADDED: Advanced event tracking middleware
+  // Advanced event tracking middleware (temporarily disabled)
   trackAdvancedEvents: async (req: AnalyticsRequest, res: Response, next: NextFunction) => {
-    try {
-      // Track form submissions
-      if (req.method === 'POST' && req.visitorData) {
-        const formEndpoints = [
-          '/api/contact',
-          '/api/comments',
-          '/api/auth/register',
-          '/api/auth/login'
-        ];
-
-        if (formEndpoints.some(endpoint => req.url.startsWith(endpoint))) {
-          setTimeout(async () => {
-            try {
-              await advancedAnalyticsService.trackEvent({
-                eventType: 'form_submit',
-                eventCategory: 'Form',
-                eventAction: 'Submit',
-                eventLabel: req.url,
-                sessionId: req.visitorData!.sessionId,
-                visitorId: req.visitorData!.visitorId,
-                pageUrl: req.url,
-                pageTitle: 'Form Submission',
-                userAgent: req.headers['user-agent'] || 'Unknown',
-                ipAddress: getClientIP(req),
-                formData: { endpoint: req.url }
-              });
-            } catch (error) {
-              console.error('Failed to track form submission:', error);
-            }
-          }, 100); // Small delay to ensure form processing
-        }
-      }
-
-      next();
-    } catch (error) {
-      console.error('Advanced event tracking error:', error);
-      next(); // Don't block request if analytics fails
-    }
+    // Temporarily disabled - will implement later
+    next();
   }
 };
 

@@ -5,6 +5,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  role?: string; // ✅ Add role
 }
 
 interface AuthContextType {
@@ -22,88 +23,111 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🔄 AuthProvider mounted - Starting auth check');
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
+    console.log('🔐 ========== AUTH CHECK STARTED ==========');
+    console.log('⏰ Time:', new Date().toLocaleTimeString());
+    
     try {
       const token = localStorage.getItem('admin_token');
       const userData = localStorage.getItem('admin_user');
       
-      console.log('🔐 Auth Check - Storage:', {
-        hasToken: !!token,
-        hasUserData: !!userData
+      console.log('📦 Storage Status:', {
+        token: token ? `✅ Present (${token.length} chars)` : '❌ Absent',
+        userData: userData ? '✅ Present' : '❌ Absent',
+        currentPath: window.location.pathname
       });
 
-      if (token && userData) {
-        try {
-          // ✅ Verify token with backend
-          console.log('🔐 Verifying token with backend...');
-          const response = await adminAPI.getProfile();
-          
-          console.log('✅ Token valid, user:', response.data);
-          // ✅ FIX: Access user from response.data.data.user
-          setUser(response.data.data.user);
-        } catch (error) {
-          console.error('❌ Token verification failed:', error);
-          // Token invalid, clear storage
-          localStorage.removeItem('admin_token');
-          localStorage.removeItem('admin_user');
-          setUser(null);
+      // 🔴 CRITICAL FIX: Agar token nahi hai to DIRECT clear
+      if (!token) {
+        console.log('🚫 No token found - Clearing any existing data');
+        clearStorage();
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('🔐 Attempting backend verification...');
+      
+      try {
+        // ✅ MUST VERIFY WITH BACKEND - NO CACHE ALLOWED
+        const response = await adminAPI.getProfile();
+        console.log('📡 Backend Response:', response.data);
+        
+        if (response.data.success && response.data.data?.user) {
+          const userFromBackend = response.data.data.user;
+          console.log('✅ Backend auth SUCCESS - User:', userFromBackend.email);
+          setUser(userFromBackend);
+        } else {
+          console.log('❌ Invalid backend response - Clearing storage');
+          clearStorage();
         }
-      } else {
-        console.log('❌ No token or user data found');
-        setUser(null);
+      } catch (error: any) {
+        console.error('❌ Backend verification FAILED:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        });
+        
+        // 🔴 CRITICAL: Network error = LOGOUT
+        console.log('🌐 Network/Server error - FORCE LOGOUT');
+        clearStorage();
+        
+        // Optional: Show error message
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          console.log('🔐 Token invalid/expired according to server');
+        }
       }
     } catch (error) {
-      console.error('❌ Auth check failed:', error);
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_user');
-      setUser(null);
+      console.error('💥 Auth check CRASHED:', error);
+      clearStorage();
     } finally {
+      console.log('✅ Auth check completed');
       setIsLoading(false);
     }
   };
 
+  const clearStorage = () => {
+    console.log('🧹 Clearing storage...');
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    setUser(null);
+  };
+
   const login = async (email: string, password: string) => {
+    console.log('🔐 Login attempt for:', email);
+    
     try {
-      console.log('🔐 Login attempt:', email);
-      
       const response = await adminAPI.login(email, password);
+      console.log('📡 Login response:', response.data);
       
-      console.log('🔍 Login Response:', response.data);
-      
-      // ✅ FIX: Access data from response.data.data (backend structure)
       const { user: userData, token } = response.data.data;
       
-      console.log('✅ Login successful:', {
-        user: userData.email,
-        tokenLength: token?.length
-      });
+      if (!token) {
+        throw new Error('No token received');
+      }
 
-      // ✅ Save to localStorage
+      // Save to storage
       localStorage.setItem('admin_token', token);
       localStorage.setItem('admin_user', JSON.stringify(userData));
       
-      // ✅ Set user state
+      // Update state
       setUser(userData);
       
-      console.log('✅ Token saved to localStorage');
+      console.log('✅ Login SUCCESSFUL');
     } catch (error: any) {
-      console.error('❌ Login failed:', error);
-      console.log('🔍 Error details:', {
-        response: error.response?.data,
-        message: error.message
-      });
-      throw new Error(error.response?.data?.message || 'Login failed');
+      console.error('❌ Login FAILED:', error);
+      throw error;
     }
   };
 
   const logout = () => {
-    console.log('🔐 Logging out...');
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
-    setUser(null);
+    console.log('🔐 Manual logout triggered');
+    clearStorage();
+    // Optional: Call backend logout
+    // adminAPI.logout().catch(() => {});
   };
 
   const value: AuthContextType = {

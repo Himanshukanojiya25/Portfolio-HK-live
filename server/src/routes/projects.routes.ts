@@ -6,29 +6,29 @@ const router = express.Router();
 
 /**
  * @route   GET /api/projects
- * @desc    Get all projects
- * @access  Public
+ * @desc    Get all projects (admin can see all, public sees only isPublic: true)
+ * @access  Public (with admin query param)
  */
 router.get('/', projectsController.getProjects);
 
 /**
  * @route   GET /api/projects/featured
- * @desc    Get featured projects
+ * @desc    Get featured projects (public only)
  * @access  Public
  */
 router.get('/featured', projectsController.getFeaturedProjects);
 
 /**
  * @route   GET /api/projects/tech/:tech
- * @desc    Get projects by technology
+ * @desc    Get projects by technology (public only)
  * @access  Public
  */
 router.get('/tech/:tech', projectsController.getProjectsByTech);
 
 /**
  * @route   GET /api/projects/:id
- * @desc    Get project by ID
- * @access  Public
+ * @desc    Get project by ID (admin can see all, public sees only isPublic: true)
+ * @access  Public (with admin query param)
  */
 router.get('/:id', projectsController.getProjectById);
 

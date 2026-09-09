@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import Blog from '../models/Blog.model.js';
 import Project from '../models/Project.model.js';
-import Contact from '../models/Contact.model.js';
 import Visitor from '../models/Visitor.model.js';
 import Skill from '../models/Skill.model.js';
 import Comment from '../models/Comment.model.js';
@@ -23,8 +22,6 @@ export const adminController = {
         publishedBlogs,
         totalProjects,
         publishedProjects,
-        totalContacts,
-        pendingContacts,
         totalSkills,
         featuredSkills,
         totalComments,
@@ -42,10 +39,6 @@ export const adminController = {
         Project.countDocuments(),
         Project.countDocuments({ isPublic: true }),
         
-        // Contact statistics
-        Contact.countDocuments(),
-        Contact.countDocuments({ status: 'pending' }),
-        
         // Skill statistics
         Skill.countDocuments({ isActive: true }),
         Skill.countDocuments({ isFeatured: true, isActive: true }),
@@ -61,11 +54,10 @@ export const adminController = {
         Visitor.countDocuments()
       ]);
 
-      // Recent activities
+      // Recent activities (without contacts)
       const recentActivities = await Promise.all([
         Blog.find().sort({ createdAt: -1 }).limit(5).select('title status createdAt'),
         Project.find().sort({ createdAt: -1 }).limit(5).select('title status createdAt'),
-        Contact.find().sort({ createdAt: -1 }).limit(5).select('name email status createdAt'),
         Comment.find().sort({ createdAt: -1 }).limit(5).select('content status createdAt author.name')
       ]);
 
@@ -76,8 +68,6 @@ export const adminController = {
           draftBlogs: totalBlogs - publishedBlogs,
           totalProjects,
           publishedProjects,
-          totalContacts,
-          pendingContacts,
           totalSkills,
           featuredSkills,
           totalComments,
@@ -92,8 +82,7 @@ export const adminController = {
         recentActivities: {
           blogs: recentActivities[0],
           projects: recentActivities[1],
-          contacts: recentActivities[2],
-          comments: recentActivities[3]
+          comments: recentActivities[2]
         }
       };
 
@@ -337,7 +326,7 @@ export const adminController = {
       // @ts-ignore - Ignore TypeScript errors for database commands
       const dbStats = await Blog.db.db.command({ dbStats: 1 });
       
-      const collections = ['blogs', 'projects', 'contacts', 'visitors', 'skills', 'comments'];
+      const collections = ['blogs', 'projects', 'visitors', 'skills', 'comments'];
       const collectionStats = await Promise.all(
         collections.map(async (collection) => {
           try {
@@ -392,12 +381,11 @@ export const adminController = {
     }
   },
 
-  // ✅ GET QUICK ACTIONS - PROPERLY ADDED AS SEPARATE METHOD
+  // GET QUICK ACTIONS (without contacts)
   getQuickActions: async (req: AuthRequest, res: Response) => {
     try {
-      const [recentProjects, recentContacts, popularSkills] = await Promise.all([
+      const [recentProjects, popularSkills] = await Promise.all([
         Project.find().sort({ createdAt: -1 }).limit(3).select('title status createdAt'),
-        Contact.find().sort({ createdAt: -1 }).limit(3).select('name email status createdAt'),
         Skill.find({ isActive: true }).sort({ endorsementCount: -1 }).limit(5).select('name category endorsementCount')
       ]);
 
@@ -405,7 +393,6 @@ export const adminController = {
         success: true,
         data: {
           recentProjects,
-          recentContacts,
           popularSkills
         }
       });
