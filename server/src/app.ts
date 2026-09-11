@@ -16,7 +16,7 @@ import skillsRoutes from './routes/skills.routes.js';
 import projectsRoutes from './routes/projects.routes.js';
 import commentsRoutes from './routes/comments.routes.js';
 import adminRoutes from './routes/admin.routes.js';
-import publicRoutes from './routes/publicRoutes.js';   // ✅ FIXED: added .js extension
+import publicRoutes from './routes/publicRoutes.js';
 import testimonialRoutes from './routes/testimonial.routes.js';
 
 // Load environment variables
@@ -37,7 +37,7 @@ const limiter = rateLimit({
   legacyHeaders: false
 });
 
-// ✅ FIXED: CORS - supports multiple environments
+// ✅ CORS - supports multiple environments
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
@@ -50,11 +50,12 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
-    
+
+    console.error(`❌ CORS blocked origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true
@@ -113,8 +114,8 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling for undefined routes
-app.use('*', (req, res) => {
+// ✅ FIXED: Error handling for undefined routes (Express 5 compatible)
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `Route ${req.originalUrl} not found`
@@ -125,10 +126,7 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
-  console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
-  console.log(`💼 Projects API: http://localhost:${PORT}/api/projects`);
-  console.log(`💬 Testimonials API: http://localhost:${PORT}/api/testimonials`);
+  console.log(`🌐 Allowed origins: ${allowedOrigins.join(', ') || 'none'}`);
 });
 
 export default app;
