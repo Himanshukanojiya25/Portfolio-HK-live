@@ -9,7 +9,7 @@
     "dev:server-only": "nodemon server/index-dev.ts",
     "build": "vite build",
     "build:client": "vite build",
-    "build:server": "esbuild server/index-prod.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/index.js",
+    "build:server": "esbuild server/index-prod.ts --platform=node --bundle --format=esm --outfile=dist/index.js --external:express --external:mongoose --external:cors --external:dotenv --external:jsonwebtoken --external:bcryptjs --external:nodemailer --external:multer --external:cloudinary --external:socket.io --external:ws --external:helmet --external:morgan --external:express-rate-limit --external:express-validator --external:express-async-handler --external:express-session --external:passport --external:passport-local --external:memorystore --external:connect-pg-simple --external:mongodb --external:drizzle-orm --external:drizzle-zod --external:zod --external:zod-validation-error --external:geoip-lite --external:user-agents --external:@neondatabase/serverless",
     "start": "node dist/index.js",
     "start:dev": "node server/index-dev.ts",
     "check": "tsc",
