@@ -352,89 +352,62 @@ export default function Projects() {
     };
   }, []);
 
-const fetchProjects = async () => {
-  try {
-    setLoading(true);
-    console.log('🔍 [FRONTEND] Fetching projects...');
-    
-    // TRY BOTH METHODS
-    const featuredResponse = await projectApi.getFeatured();
-    console.log('⭐ Featured API Response:', featuredResponse);
-    
-    const allResponse = await projectApi.getAll();
-    console.log('📦 All Projects API Response:', allResponse);
-    
-    // EXTRACT PROJECTS FROM RESPONSE
-    let projectsData: Project[] = [];
-    
-    // Try different response structures
-    if (featuredResponse.data?.projects && featuredResponse.data.projects.length > 0) {
-      projectsData = featuredResponse.data.projects;
-      console.log('✅ Using featuredResponse.data.projects');
-    } 
-    else if (allResponse.data?.projects && allResponse.data.projects.length > 0) {
-      projectsData = allResponse.data.projects;
-      console.log('✅ Using allResponse.data.projects');
-    }
-    else if (featuredResponse.projects && featuredResponse.projects.length > 0) {
-      projectsData = featuredResponse.projects;
-      console.log('✅ Using featuredResponse.projects');
-    }
-    else if (allResponse.projects && allResponse.projects.length > 0) {
-      projectsData = allResponse.projects;
-      console.log('✅ Using allResponse.projects');
-    }
-    else if (Array.isArray(featuredResponse)) {
-      projectsData = featuredResponse;
-      console.log('✅ Using featuredResponse (array)');
-    }
-    else if (Array.isArray(allResponse)) {
-      projectsData = allResponse;
-      console.log('✅ Using allResponse (array)');
-    }
-    
-    console.log(`📊 Final projects: ${projectsData.length} items`);
-    console.log('📋 Projects:', projectsData.map(p => ({
-      id: p._id,
-      title: p.title,
-      isPublic: p.isPublic,
-      isFeatured: p.isFeatured
-    })));
-    
-    // Filter only public projects
-    const publicProjects = projectsData.filter((project: Project) => project.isPublic === true);
-    console.log(`🔐 Public projects: ${publicProjects.length}/${projectsData.length}`);
-    
-    setProjects(publicProjects);
-    
-  } catch (err: any) {
-    console.error('❌ Error fetching projects:', err);
-    setError('Failed to load projects');
-    
-    // Fallback
-    setProjects([
-      {
-        _id: '1',
-        title: "CRM System",
-        category: "web",
-        description: "A comprehensive Customer Relationship Management system built with Node.js and Express.",
-        shortDescription: "A comprehensive Customer Relationship Management system built with Node.js and Express.",
-        techStack: ["Node.js", "Express", "EJS", "MongoDB"],
-        featuredImage: "https://via.placeholder.com/600x400/3b82f6/ffffff?text=CRM+Project",
-        liveUrl: "#",
-        repositoryUrl: "https://github.com/Himanshukanojiya25/CRM-Project",
-        isPublic: true,
-        isFeatured: true,
-        status: "completed",
-        viewCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 [FRONTEND] Fetching projects...');
+      
+      const response = await projectApi.getAll();
+      console.log('📦 Projects API Response:', response);
+      
+      let projectsData: Project[] = [];
+      
+      // ✅ FIX: Backend sends { success, data: [...], pagination }
+      if (Array.isArray(response.data)) {
+        projectsData = response.data;
+        console.log('✅ Extracted from response.data (array)');
+      } else if (response.data && Array.isArray((response.data as any).projects)) {
+        projectsData = (response.data as any).projects;
+        console.log('✅ Extracted from response.data.projects');
+      } else if (Array.isArray(response)) {
+        projectsData = response as any;
+        console.log('✅ Extracted from response (array)');
       }
-    ]);
-  } finally {
-    setLoading(false);
-  }
-};
+      
+      console.log(`📊 Total projects from API: ${projectsData.length}`);
+      console.log('📋 Projects:', projectsData.map(p => ({
+        id: p._id,
+        title: p.title,
+        isPublic: p.isPublic,
+        isFeatured: p.isFeatured
+      })));
+      
+      // ✅ FIX: Filter only public projects
+      const publicProjects = projectsData.filter((project: Project) => project.isPublic === true);
+      console.log(`🔐 Public projects: ${publicProjects.length}/${projectsData.length}`);
+      
+      // ✅ FIX: If featured exist, show featured. Otherwise show all public.
+      const featured = publicProjects.filter((p: Project) => p.isFeatured === true);
+      const finalProjects = featured.length > 0 ? featured : publicProjects;
+      
+      console.log(`🎯 Showing ${finalProjects.length} projects (featured: ${featured.length > 0})`);
+      
+      setProjects(finalProjects);
+      setError('');
+      setDebugInfo({
+        lastFetched: new Date().toISOString(),
+        publicProjects: publicProjects.length,
+        totalProjects: projectsData.length
+      });
+      
+    } catch (err: any) {
+      console.error('❌ Error fetching projects:', err);
+      setError('Failed to load projects');
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRefresh = () => {
     console.log('🔄 Manually refreshing projects...');
@@ -506,7 +479,7 @@ const fetchProjects = async () => {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="text-sm sm:text-lg text-white/60 max-w-2xl mx-auto px-4"
           >
-            {projects.length} featured projects from my portfolio. 
+            {projects.length} projects from my portfolio. 
             {process.env.NODE_ENV === 'development' && (
               <span className="block text-xs text-primary/70 mt-1">
                 Only public projects (isPublic: true) are shown here.
@@ -520,7 +493,6 @@ const fetchProjects = async () => {
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
             <p className="mt-4 text-muted-foreground">Loading projects from backend...</p>
-            <p className="text-xs text-gray-500 mt-2">Fetching from: {process.env.VITE_API_URL || 'http://localhost:5000'}</p>
           </div>
         )}
 
@@ -542,7 +514,7 @@ const fetchProjects = async () => {
         )}
 
         {/* Projects Grid */}
-        {!loading && !error && (
+        {!loading && !error && projects.length > 0 && (
           <div className={`
             grid gap-4 sm:gap-6 md:gap-8
             ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}

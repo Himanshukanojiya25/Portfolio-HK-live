@@ -8,28 +8,33 @@ interface ProtectedRouteProps {
   requiredRole?: string;
 }
 
-const ProtectedRoute = ({ children, requiredRole = "admin" }: ProtectedRouteProps) => {
+const ProtectedRoute = ({
+  children,
+  requiredRole = "admin",
+}: ProtectedRouteProps) => {
   const { user, isLoading, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    // Agar loading complete ho gayi aur authenticated nahi hai
-    if (!isLoading && !isAuthenticated) {
-      console.log("🚫 ProtectedRoute: Not authenticated, redirecting to login");
-      localStorage.removeItem("admin_token");
-      localStorage.removeItem("admin_user");
-      setLocation("/admin/login");
+    if (isLoading) return;
+
+    // Not authenticated → login
+    if (!isAuthenticated) {
+      console.log("🚫 Not authenticated → /admin/login");
+      if (location !== "/admin/login") {
+        setLocation("/admin/login");
+      }
       return;
     }
 
-    // Agar authenticated hai lekin role match nahi karta
-    if (!isLoading && isAuthenticated && user?.role !== requiredRole) {
-      console.log(`🚫 ProtectedRoute: User role ${user?.role} doesn't match required role ${requiredRole}`);
-      setLocation("/admin/dashboard");
+    // Role check — only if role present
+    const userRole = user?.role;
+    if (requiredRole && userRole && userRole !== requiredRole) {
+      console.log(`🚫 Role mismatch: ${userRole} !== ${requiredRole}`);
+      setLocation("/admin/login");
     }
-  }, [isLoading, isAuthenticated, user, requiredRole, setLocation]);
+  }, [isLoading, isAuthenticated, user, requiredRole, setLocation, location]);
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 flex items-center justify-center">
@@ -42,13 +47,9 @@ const ProtectedRoute = ({ children, requiredRole = "admin" }: ProtectedRouteProp
     );
   }
 
-  // Agar authenticated hai aur role match karta hai
-  if (isAuthenticated && user?.role === requiredRole) {
-    return <>{children}</>;
-  }
+  if (!isAuthenticated) return null;
 
-  // Default case: return null (redirect will happen via useEffect)
-  return null;
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;

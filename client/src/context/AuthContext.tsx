@@ -5,7 +5,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role?: string; // ✅ Add role
+  role?: string;
 }
 
 interface AuthContextType {
@@ -30,18 +30,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const checkAuth = async () => {
     console.log('🔐 ========== AUTH CHECK STARTED ==========');
     console.log('⏰ Time:', new Date().toLocaleTimeString());
-    
+
     try {
       const token = localStorage.getItem('admin_token');
       const userData = localStorage.getItem('admin_user');
-      
+
       console.log('📦 Storage Status:', {
         token: token ? `✅ Present (${token.length} chars)` : '❌ Absent',
         userData: userData ? '✅ Present' : '❌ Absent',
-        currentPath: window.location.pathname
+        currentPath: window.location.pathname,
       });
 
-      // 🔴 CRITICAL FIX: Agar token nahi hai to DIRECT clear
+      // No token → clear & stop
       if (!token) {
         console.log('🚫 No token found - Clearing any existing data');
         clearStorage();
@@ -49,17 +49,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // ✅ OPTIMISTIC: Pehle localStorage se user set karo (fast UI)
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          // Ensure role always exists
+          if (!parsedUser.role) parsedUser.role = 'admin';
+          console.log('⚡ Optimistic user set from storage:', parsedUser.email);
+          setUser(parsedUser);
+        } catch (e) {
+          console.warn('⚠️ Could not parse admin_user from storage');
+        }
+      }
+
       console.log('🔐 Attempting backend verification...');
-      
+
       try {
-        // ✅ MUST VERIFY WITH BACKEND - NO CACHE ALLOWED
         const response = await adminAPI.getProfile();
         console.log('📡 Backend Response:', response.data);
-        
+
         if (response.data.success && response.data.data?.user) {
           const userFromBackend = response.data.data.user;
+
+          // ✅ Ensure role always set
+          if (!userFromBackend.role) userFromBackend.role = 'admin';
+
           console.log('✅ Backend auth SUCCESS - User:', userFromBackend.email);
           setUser(userFromBackend);
+
+          // Sync updated user to storage
+          localStorage.setItem('admin_user', JSON.stringify(userFromBackend));
         } else {
           console.log('❌ Invalid backend response - Clearing storage');
           clearStorage();
@@ -68,16 +87,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('❌ Backend verification FAILED:', {
           message: error.message,
           status: error.response?.status,
-          data: error.response?.data
+          data: error.response?.data,
         });
-        
-        // 🔴 CRITICAL: Network error = LOGOUT
-        console.log('🌐 Network/Server error - FORCE LOGOUT');
-        clearStorage();
-        
-        // Optional: Show error message
+
+        // 🔴 Only clear on 401/403 — NOT on network errors
         if (error.response?.status === 401 || error.response?.status === 403) {
           console.log('🔐 Token invalid/expired according to server');
+          clearStorage();
+        } else {
+          // Network error → keep user logged in from storage
+          console.log('🌐 Network error - Keeping optimistic session');
+          // Optional: retry logic here
         }
       }
     } catch (error) {
@@ -98,25 +118,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     console.log('🔐 Login attempt for:', email);
-    
+
     try {
       const response = await adminAPI.login(email, password);
       console.log('📡 Login response:', response.data);
-      
-      const { user: userData, token } = response.data.data;
-      
+
+      // ✅ Flexible response parsing
+      const payload = response.data?.data || response.data;
+      const userData = payload.user;
+      const token = payload.token || payload.accessToken;
+
       if (!token) {
-        throw new Error('No token received');
+        throw new Error('No token received from server');
       }
+
+      if (!userData) {
+        throw new Error('No user data received from server');
+      }
+
+      // ✅ Ensure role is always set
+      const userWithRole: User = {
+        ...userData,
+        role: userData.role || 'admin',
+      };
 
       // Save to storage
       localStorage.setItem('admin_token', token);
-      localStorage.setItem('admin_user', JSON.stringify(userData));
-      
+      localStorage.setItem('admin_user', JSON.stringify(userWithRole));
+
       // Update state
-      setUser(userData);
-      
-      console.log('✅ Login SUCCESSFUL');
+      setUser(userWithRole);
+
+      console.log('✅ Login SUCCESSFUL for:', userWithRole.email);
     } catch (error: any) {
       console.error('❌ Login FAILED:', error);
       throw error;
@@ -126,8 +159,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     console.log('🔐 Manual logout triggered');
     clearStorage();
-    // Optional: Call backend logout
-    // adminAPI.logout().catch(() => {});
   };
 
   const value: AuthContextType = {

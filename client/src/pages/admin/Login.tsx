@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/context/AuthContext'; // ✅ FIXED import
 import { Shield, Mail, Lock, ArrowLeft } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -20,8 +20,16 @@ const loginSchema = z.object({
 export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
+
+  // ✅ Redirect away from login if already authenticated
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      console.log('✅ Already authenticated → redirecting to dashboard');
+      setLocation('/admin/dashboard');
+    }
+  }, [isAuthenticated, authLoading, setLocation]);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -34,16 +42,27 @@ export default function AdminLogin() {
   const onSubmit = async (values: z.infer<typeof loginSchema>) => {
     setIsLoading(true);
     try {
+      console.log('🚀 Submitting login form...');
       await login(values.email, values.password);
+
+      console.log('✅ Login resolved → navigating to dashboard');
       toast({
         title: 'Welcome back!',
         description: 'Successfully logged in.',
       });
-      setLocation('/admin/dashboard');
+
+      // ✅ Small delay to let state propagate, then navigate
+      setTimeout(() => {
+        setLocation('/admin/dashboard');
+      }, 100);
     } catch (error: any) {
+      console.error('❌ Login form error:', error);
       toast({
         title: 'Login failed',
-        description: error.message || 'Invalid credentials',
+        description:
+          error?.response?.data?.message ||
+          error.message ||
+          'Invalid credentials',
         variant: 'destructive',
       });
     } finally {
@@ -53,13 +72,11 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-secondary/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Back to home */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -117,7 +134,7 @@ export default function AdminLogin() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="password"

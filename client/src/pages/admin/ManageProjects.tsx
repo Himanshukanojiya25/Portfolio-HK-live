@@ -8,14 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { projectsAPI, type Project } from '@/services/projects';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  ArrowLeft, 
-  ExternalLink, 
-  Github, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  ArrowLeft,
+  ExternalLink,
+  Github,
   Search,
   Filter,
   Star,
@@ -68,8 +68,8 @@ export default function ManageProjects() {
   const [isToggling, setIsToggling] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Get base URL from environment or use default
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  // ✅ FIXED: baseURL now includes '/api' consistently
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     loadProjects();
@@ -83,33 +83,33 @@ export default function ManageProjects() {
     try {
       console.log('🔄 Loading projects...');
       setIsLoading(true);
-      
+
       const token = localStorage.getItem('admin_token');
-      
+
       if (!token) {
         throw new Error('No authentication token found. Please login again.');
       }
-      
-      // ✅ FIX: Add admin=true to get all projects including non-public
-      const response = await fetch(`${API_BASE_URL}/api/admin/projects?admin=true`, {
+
+      // ✅ FIXED: removed duplicate '/api' - now it's ${API_BASE_URL}/admin/projects
+      const response = await fetch(`${API_BASE_URL}/admin/projects?admin=true`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Session expired. Please login again.');
         }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data: BackendResponse = await response.json();
       console.log('📦 API Response:', data);
-      
+
       let projectsArray: BackendProject[] = [];
-      
+
       if (data.success && data.data) {
         projectsArray = data.data;
       } else if (Array.isArray(data)) {
@@ -119,9 +119,9 @@ export default function ManageProjects() {
       } else if (data && Array.isArray((data as any).projects)) {
         projectsArray = (data as any).projects;
       }
-      
+
       console.log('📊 Raw projects:', projectsArray);
-      
+
       const transformedProjects: Project[] = projectsArray.map((project: BackendProject) => ({
         id: project._id || project.id || '',
         title: project.title || 'Untitled',
@@ -141,15 +141,15 @@ export default function ManageProjects() {
         status: project.status || 'completed',
         viewCount: project.viewCount || 0
       }));
-      
+
       console.log('✨ Transformed projects:', transformedProjects);
-      
+
       setProjects(transformedProjects);
       setFilteredProjects(transformedProjects);
-      
+
     } catch (error: any) {
       console.error('❌ Error loading projects:', error);
-      
+
       toast({
         title: 'Error',
         description: error.message || 'Failed to load projects',
@@ -176,7 +176,7 @@ export default function ManageProjects() {
     }
 
     if (featuredFilter !== 'all') {
-      filtered = filtered.filter(project => 
+      filtered = filtered.filter(project =>
         featuredFilter === 'featured' ? project.featured : !project.featured
       );
     }
@@ -188,33 +188,34 @@ export default function ManageProjects() {
     if (!confirm('Are you sure you want to delete this project?')) return;
 
     setIsDeleting(id);
-    
+
     try {
       console.log('🗑️ Attempting to delete project with ID:', id);
-      
+
       const token = localStorage.getItem('admin_token');
-      
+
       if (!token) {
         throw new Error('No authentication token found. Please login again.');
       }
-      
+
       console.log('🔑 Token found, sending DELETE request...');
-      
-      // ✅ FIX: Add admin=true to URL
-      let response = await fetch(`${API_BASE_URL}/api/admin/projects/${id}?admin=true`, {
+
+      // ✅ FIXED: removed duplicate '/api'
+      let response = await fetch(`${API_BASE_URL}/admin/projects/${id}?admin=true`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('📡 DELETE Response status:', response.status);
-      
+
       // If admin endpoint fails with 404, try the regular projects endpoint
       if (response.status === 404) {
         console.log('Admin endpoint returned 404, trying regular projects endpoint...');
-        response = await fetch(`${API_BASE_URL}/api/projects/${id}?admin=true`, {
+        // ✅ FIXED: removed duplicate '/api'
+        response = await fetch(`${API_BASE_URL}/projects/${id}?admin=true`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -223,36 +224,36 @@ export default function ManageProjects() {
         });
         console.log('📡 Second attempt status:', response.status);
       }
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Error response body:', errorText);
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorText || 'Unknown error'}`);
       }
-      
+
       const data = await response.json();
       console.log('✅ Delete response:', data);
-      
+
       if (data.success || data.message?.includes('deleted')) {
         toast({
           title: 'Success',
           description: 'Project deleted successfully',
           className: 'bg-green-500 text-white',
         });
-        
+
         // Remove the project from the state immediately
         setProjects(prevProjects => prevProjects.filter(p => p.id !== id));
         setFilteredProjects(prev => prev.filter(p => p.id !== id));
-        
+
         // Optionally reload to ensure consistency
         await loadProjects();
       } else {
         throw new Error(data.message || 'Failed to delete project');
       }
-      
+
     } catch (error: any) {
       console.error('❌ Error in delete operation:', error);
-      
+
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete project. Please try again.',
@@ -266,23 +267,23 @@ export default function ManageProjects() {
   // ✅ FIXED: toggleFeatured function with proper admin=true and logging
   const toggleFeatured = async (project: Project) => {
     if (isToggling === project.id) return; // Prevent double click
-    
+
     setIsToggling(project.id);
-    
+
     try {
       const token = localStorage.getItem('admin_token');
-      
+
       if (!token) {
         throw new Error('No authentication token found. Please login again.');
       }
-      
+
       const newFeaturedStatus = !project.featured;
-      
+
       console.log(`🔄 Toggling featured for: ${project.title}`);
       console.log(`📝 Current: ${project.featured} -> New: ${newFeaturedStatus}`);
-      
-      // ✅ FIX: Add admin=true query param and include isPublic
-      const response = await fetch(`${API_BASE_URL}/api/admin/projects/${project.id}?admin=true`, {
+
+      // ✅ FIXED: removed duplicate '/api'
+      const response = await fetch(`${API_BASE_URL}/admin/projects/${project.id}?admin=true`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -293,25 +294,25 @@ export default function ManageProjects() {
           isPublic: true // Ensure project stays public
         })
       });
-      
+
       console.log('📡 Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Error response:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       console.log('✅ Toggle response:', data);
-      
+
       if (data.success) {
         toast({
           title: 'Success',
           description: `Project ${newFeaturedStatus ? 'added to' : 'removed from'} featured`,
           className: 'bg-blue-500 text-white',
         });
-        
+
         // ✅ Reload projects to refresh the list
         await loadProjects();
       } else {
@@ -386,8 +387,8 @@ export default function ManageProjects() {
 
   const tableRowVariants = {
     hidden: { opacity: 0, x: -20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       x: 0,
       transition: {
         duration: 0.3
@@ -407,7 +408,7 @@ export default function ManageProjects() {
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
-          animate={{ 
+          animate={{
             x: [0, 100, 0],
             y: [0, 50, 0],
           }}
@@ -419,7 +420,7 @@ export default function ManageProjects() {
           className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"
         />
         <motion.div
-          animate={{ 
+          animate={{
             x: [0, -100, 0],
             y: [0, -50, 0],
           }}
@@ -464,7 +465,7 @@ export default function ManageProjects() {
             </div>
           </div>
         </div>
-        
+
         <motion.div
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -489,7 +490,7 @@ export default function ManageProjects() {
           <motion.div
             key={stat.label}
             variants={itemVariants}
-            whileHover={{ 
+            whileHover={{
               scale: 1.05,
               y: -5,
               transition: { duration: 0.2 }
@@ -498,12 +499,12 @@ export default function ManageProjects() {
             <Card className="bg-white/5 backdrop-blur-xl border-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden">
               <div className={`absolute inset-0 bg-gradient-to-r ${stat.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm`} />
               <div className="absolute inset-[1px] bg-gradient-to-br from-gray-900 to-black rounded-lg" />
-              
+
               <CardContent className="p-6 relative z-10">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-white/60 text-sm font-medium">{stat.label}</p>
-                    <motion.p 
+                    <motion.p
                       className="text-3xl font-bold text-white mt-2"
                       initial={{ scale: 0.5 }}
                       animate={{ scale: 1 }}
@@ -552,7 +553,7 @@ export default function ManageProjects() {
                   className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/40"
                 />
               </div>
-              
+
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
@@ -670,19 +671,19 @@ export default function ManageProjects() {
                               </div>
                             </div>
                           </TableCell>
-                          
+
                           <TableCell>
                             <Badge variant="outline" className="text-white/70 border-white/20">
                               {project.category}
                             </Badge>
                           </TableCell>
-                          
+
                           <TableCell>
                             <div className="flex flex-wrap gap-1 max-w-[150px]">
                               {project.tech.slice(0, 2).map((tech, idx) => (
-                                <Badge 
-                                  key={`${project.id}-${tech}-${idx}`} 
-                                  variant="secondary" 
+                                <Badge
+                                  key={`${project.id}-${tech}-${idx}`}
+                                  variant="secondary"
                                   className="text-xs bg-white/10 text-white/80 border-white/10"
                                 >
                                   {tech}
@@ -695,14 +696,14 @@ export default function ManageProjects() {
                               )}
                             </div>
                           </TableCell>
-                          
+
                           <TableCell>
                             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                               <Badge
                                 variant={project.featured ? "default" : "outline"}
                                 className={`cursor-pointer transition-all duration-300 ${
-                                  project.featured 
-                                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0' 
+                                  project.featured
+                                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0'
                                     : 'bg-white/5 text-white/70 border-white/20 hover:bg-white/10'
                                 } ${isToggling === project.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 onClick={() => toggleFeatured(project)}
@@ -720,7 +721,7 @@ export default function ManageProjects() {
                               </Badge>
                             </motion.div>
                           </TableCell>
-                          
+
                           <TableCell>
                             <div className="flex justify-end gap-1">
                               {project.links.demo && project.links.demo !== '#' && (
@@ -735,7 +736,7 @@ export default function ManageProjects() {
                                   </Button>
                                 </motion.div>
                               )}
-                              
+
                               {project.links.github && project.links.github !== '#' && (
                                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                                   <Button
@@ -748,19 +749,19 @@ export default function ManageProjects() {
                                   </Button>
                                 </motion.div>
                               )}
-                              
+
                               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                                 <Link href={`/admin/projects/edit/${project.id}`}>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
                                     className="border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/50"
                                   >
                                     <Edit className="w-4 h-4" />
                                   </Button>
                                 </Link>
                               </motion.div>
-                              
+
                               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                                 <Button
                                   size="sm"

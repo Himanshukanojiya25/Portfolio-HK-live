@@ -10,6 +10,7 @@ export interface LoginResponse {
     id: string;
     email: string;
     name: string;
+    role?: string;
   };
   token: string;
 }
@@ -48,49 +49,51 @@ export interface QuickActionsData {
   popularSkills: any[];
 }
 
+// ✅ IMPORTANT: baseURL already has '/api'
+// So all endpoints below should NOT include '/api' prefix
+
 export const adminAPI = {
-  // ✅ FIXED: Authentication endpoints
-  login: async (email: string, password: string): Promise<{ data: LoginResponse }> => {
-    const response = await api.post('/api/auth/login', { email, password });
+  // Authentication
+  login: async (email: string, password: string) => {
+    const response = await api.post('/auth/login', { email, password });
     return response;
   },
 
   logout: async (): Promise<void> => {
-    await api.post('/api/auth/logout');
+    await api.post('/auth/logout');
   },
 
-  // ✅ FIXED: Changed from /api/admin/profile to /api/auth/profile
-  getProfile: async (): Promise<{ data: any }> => {
-    const response = await api.get('/api/auth/profile');
+  getProfile: async () => {
+    const response = await api.get('/auth/profile');
     return response;
   },
 
   // Dashboard
-  getDashboardStats: async (): Promise<{ data: DashboardStats }> => {
-    const response = await api.get('/api/admin/dashboard/stats');
+  getDashboardStats: async () => {
+    const response = await api.get('/admin/dashboard/stats');
     return response;
   },
 
-  getQuickActions: async (): Promise<{ data: QuickActionsData }> => {
-    const response = await api.get('/api/admin/quick-actions');
+  getQuickActions: async () => {
+    const response = await api.get('/admin/quick-actions');
     return response;
   },
 
   // Analytics
-  getAnalyticsData: async (period: string = '7d'): Promise<{ data: any }> => {
-    const response = await api.get(`/api/admin/analytics?period=${period}`);
+  getAnalyticsData: async (period: string = '7d') => {
+    const response = await api.get(`/admin/analytics?period=${period}`);
     return response;
   },
 
-  getSystemMetrics: async (): Promise<{ data: any }> => {
-    const response = await api.get('/api/admin/system/metrics');
+  getSystemMetrics: async () => {
+    const response = await api.get('/admin/system/metrics');
     return response;
   },
 
-  getContentOverview: async (): Promise<{ data: any }> => {
-    const response = await api.get('/api/admin/content/overview');
+  getContentOverview: async () => {
+    const response = await api.get('/admin/content/overview');
     return response;
-  }
+  },
 };
 
 export default adminAPI;

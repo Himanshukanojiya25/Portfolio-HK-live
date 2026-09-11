@@ -179,7 +179,7 @@ const BlogSchema: Schema = new Schema(
 );
 
 // Indexes for better query performance
-BlogSchema.index({ slug: 1 });
+// BlogSchema.index({ slug: 1 });
 BlogSchema.index({ status: 1, publishedAt: -1 });
 BlogSchema.index({ category: 1, publishedAt: -1 });
 BlogSchema.index({ tags: 1 });

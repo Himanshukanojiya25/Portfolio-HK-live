@@ -16,7 +16,8 @@ import skillsRoutes from './routes/skills.routes.js';
 import projectsRoutes from './routes/projects.routes.js';
 import commentsRoutes from './routes/comments.routes.js';
 import adminRoutes from './routes/admin.routes.js';
-import publicRoutes from './routes/publicRoutes';
+import publicRoutes from './routes/publicRoutes.js';   // ✅ FIXED: added .js extension
+import testimonialRoutes from './routes/testimonial.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -36,19 +37,38 @@ const limiter = rateLimit({
   legacyHeaders: false
 });
 
-// Middleware
-app.use(limiter);
-app.use(helmet());
+// ✅ FIXED: CORS - supports multiple environments
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+].filter(Boolean); // remove undefined entries
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
+}));
+
+// Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' } // ✅ allow images from other origins
 }));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(analyticsMiddleware.trackVisit);
 app.use(analyticsMiddleware.trackEngagement);
-// Removed: app.use(analyticsMiddleware.trackAdvancedEvents);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -60,13 +80,12 @@ app.use('/api/projects', projectsRoutes);
 app.use('/api/comments', commentsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/public', publicRoutes);
-
-// Removed: app.use('/api/analytics/advanced', advancedAnalyticsRoutes);
+app.use('/api/testimonials', testimonialRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    message: 'Server is running!', 
+  res.status(200).json({
+    message: 'Server is running!',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
@@ -74,7 +93,7 @@ app.get('/api/health', (req, res) => {
 
 // Basic route for testing
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Welcome to Portfolio Backend API',
     version: '1.0.0',
     phase: '1.3 - Authentication & Analytics',
@@ -87,6 +106,8 @@ app.get('/', (req, res) => {
       projects: '/api/projects',
       comments: '/api/comments',
       admin: '/api/admin',
+      public: '/api/public',
+      testimonials: '/api/testimonials',
       health: '/api/health'
     }
   });
@@ -106,6 +127,8 @@ app.listen(PORT, () => {
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
   console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
+  console.log(`💼 Projects API: http://localhost:${PORT}/api/projects`);
+  console.log(`💬 Testimonials API: http://localhost:${PORT}/api/testimonials`);
 });
 
 export default app;

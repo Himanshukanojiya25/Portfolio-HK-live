@@ -30,9 +30,28 @@ const ProjectsPage = () => {
       if (featuredOnly) params.featured = true;
       
       const response = await projectApi.getAll(params);
-      setProjects(response.data.projects || []);
+      console.log('📦 ProjectsPage API Response:', response);
+      
+      // ✅ FIX: Backend sends { success, data: [...], pagination }
+      let projectsData: any[] = [];
+      
+      if (Array.isArray(response.data)) {
+        projectsData = response.data;
+      } else if (response.data && Array.isArray((response.data as any).projects)) {
+        projectsData = (response.data as any).projects;
+      } else if (Array.isArray(response)) {
+        projectsData = response as any;
+      }
+      
+      // ✅ FIX: Only show public projects
+      const publicProjects = projectsData.filter((p: any) => p.isPublic === true);
+      
+      console.log(`✅ ProjectsPage: ${publicProjects.length} public projects`);
+      setProjects(publicProjects);
+      
     } catch (error) {
       console.error('Error fetching projects:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -57,12 +76,13 @@ const ProjectsPage = () => {
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeOut"
+        ease: "easeOut" as const
       }
     }
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -116,7 +136,7 @@ const ProjectsPage = () => {
           </div>
           <div className="glass-card rounded-xl p-4 text-center">
             <div className="text-2xl font-bold text-gradient">
-              {[...new Set(projects.flatMap(p => p.techStack))].length}
+              {[...new Set(projects.flatMap(p => p.techStack || []))].length}
             </div>
             <div className="text-sm text-muted-foreground">Technologies</div>
           </div>
@@ -234,6 +254,8 @@ const ProjectsPage = () => {
 };
 
 const ProjectCard = ({ project, index }: { project: any; index: number }) => {
+  const techStack = project.techStack || [];
+  
   return (
     <div className="glass-card rounded-2xl overflow-hidden h-full flex flex-col group relative">
       {/* Featured Badge */}
@@ -255,7 +277,7 @@ const ProjectCard = ({ project, index }: { project: any; index: number }) => {
             ? 'bg-blue-500/10 text-blue-500'
             : 'bg-yellow-500/10 text-yellow-500'
         }`}>
-          {project.status.replace('-', ' ')}
+          {project.status?.replace('-', ' ') || 'completed'}
         </div>
       </div>
 
@@ -265,6 +287,9 @@ const ProjectCard = ({ project, index }: { project: any; index: number }) => {
           src={project.featuredImage || 'https://via.placeholder.com/600x400'}
           alt={project.title}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/600x400';
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
       </div>
@@ -276,23 +301,23 @@ const ProjectCard = ({ project, index }: { project: any; index: number }) => {
             {project.title}
           </h3>
           <p className="text-muted-foreground text-sm line-clamp-2">
-            {project.shortDescription}
+            {project.shortDescription || project.description?.substring(0, 100)}
           </p>
         </div>
 
         {/* Tech Stack */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {project.techStack.slice(0, 4).map((tech: string) => (
+          {techStack.slice(0, 4).map((tech: string, idx: number) => (
             <span
-              key={tech}
+              key={`${project._id}-${tech}-${idx}`}
               className="px-3 py-1 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 text-blue-400 text-xs rounded-full border border-blue-500/20"
             >
               {tech}
             </span>
           ))}
-          {project.techStack.length > 4 && (
+          {techStack.length > 4 && (
             <span className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded-full">
-              +{project.techStack.length - 4}
+              +{techStack.length - 4}
             </span>
           )}
         </div>
